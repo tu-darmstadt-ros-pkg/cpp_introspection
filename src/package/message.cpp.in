@@ -200,6 +200,7 @@ namespace impl {
       virtual ~FieldAccess() {}
 
       virtual void setAny(const boost::any& value, std::size_t i) const { FieldType::reference(instance_)[i] = boost::any_cast<typename FieldType::value_type>(value); }
+      virtual void resize(std::size_t new_size) const { FieldType::reference(instance_).resize(new_size); }
       virtual MessagePtr expand(std::size_t i) const {
         if (i < expanded_.size() && expanded_[i]) return expanded_[i];
         MessagePtr message(messageByTypeId(typeid(typename FieldType::value_type)));

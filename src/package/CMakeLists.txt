@@ -5,7 +5,12 @@ endif(NOT DEFINED package)
 message(STATUS "Building introspection library for package ${package}")
 set(CMAKE_BUILD_TYPE MinSizeRel)
 
+# Find dependent packages
 find_package(roscpp_serialization REQUIRED)
+find_package(roscpp_traits REQUIRED)
+find_package(rostime REQUIRED)
+set(${package}_INCLUDE_DIRS ${${package}_INCLUDE_DIRS} ${roscpp_serialization_INCLUDE_DIRS} ${roscpp_traits_INCLUDE_DIRS} ${rostime_INCLUDE_DIRS})
+set(${package}_LIBRARIES ${${package}_LIBRARIES} ${roscpp_serialization_LIBRARIES} ${roscpp_traits_LIBRARIES} ${rostime_LIBRARIES})
 
 # List all messages in package ${package}
 execute_process(
@@ -77,7 +82,5 @@ configure_file(package.cpp.in package.cpp @ONLY)
 list(APPEND introspection_${package}_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/package.cpp)
 
 add_library(introspection_${package} SHARED ${introspection_${package}_SOURCES})
-set_target_properties(introspection_${package} PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/lib/introspection"
-)
-target_link_libraries(introspection_${package} ${${package}_LIBRARIES} ${roscpp_serialization_LIBRARIES})
+set_target_properties(introspection_${package} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/lib/introspection")
+target_link_libraries(introspection_${package} ${${package}_LIBRARIES})

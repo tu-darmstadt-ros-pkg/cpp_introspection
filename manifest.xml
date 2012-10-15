@@ -16,7 +16,6 @@
   <depend package="roscpp_traits"/>
   <depend package="roscpp_serialization"/>
   <depend package="rosbuild"/>
-  <depend package="std_msgs"/>
 
   <export>
     <rosbuild cmake_directory="${prefix}/cmake"/>

@@ -73,12 +73,9 @@ namespace cpp_introspection {
 
     // capacity
     virtual std::size_t size() const { return 1; }
+    virtual void resize(size_t size) const {}
     virtual bool empty() const { return false; }
     virtual std::size_t max_size() const { return 1; }
-
-    // virtual void resize(size_t size) const {}
-    // virtual void resize(size_t size, const boost::any& value) const {}
-    // template <typename T> void setAnySize(resize size, const T& value) const { setAnySize(size, boost::any(value)); }
 
     virtual MessagePtr expand(std::size_t i = 0) const;
     virtual FieldPtr access(Accessor& accessor) const = 0;

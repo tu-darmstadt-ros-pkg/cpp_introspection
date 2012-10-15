@@ -6,9 +6,6 @@ if(BUILD_TEST)
   include(${PROJECT_SOURCE_DIR}/cmake/introspection.cmake)
   introspection_add(std_msgs)
 
-  find_package(roscpp REQUIRED)
-  include_directories(${roscpp_INCLUDE_DIRS})
-
   add_executable(introspection_test test.cpp)
-  target_link_libraries(introspection_test cpp_introspection ${roscpp_LIBRARIES})
+  target_link_libraries(introspection_test cpp_introspection)
 endif(BUILD_TEST)
