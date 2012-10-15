@@ -1,0 +1,14 @@
+<stack>
+  <name>cpp_introspection</name>
+  <version>0.1.0</version>
+  <description brief="cpp_introspection">
+     cpp_introspection enables introspection of ROS message types in roscpp.
+     Introspection is useful when message data is going to be exported to or imported from
+     other data formats or applications.
+  </description>
+  <author email="meyer@fsr.tu-darmstadt.de">Johannes Meyer</author>
+  <license>BSD</license>
+  <copyright>Johannes Meyer</copyright>
+  <url>http://www.ros.org/wiki/cpp_introspection</url>
+</stack>
+

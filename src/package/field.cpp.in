@@ -1,0 +1,76 @@
+//=================================================================================================
+// Copyright (c) 2012, Johannes Meyer, TU Darmstadt
+// All rights reserved.
+
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//     * Neither the name of the Flight Systems and Automatic Control group,
+//       TU Darmstadt, nor the names of its contributors may be used to
+//       endorse or promote products derived from this software without
+//       specific prior written permission.
+
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
+// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//=================================================================================================
+
+#include <@package@/@message@.h>
+#include <introspection/field.h>
+#include <introspection/field_traits.h>
+
+#include <ros/message_traits.h>
+
+namespace cpp_introspection {
+namespace @package@ {
+namespace @message@ {
+namespace fields {
+
+struct field_@field@ : public Field {
+  typedef ::@package@::@message@ message_type;
+  typedef message_type::_@field@_type field_type;
+  typedef field_traits::is_array<field_type> is_array;
+  typedef field_traits::is_vector<field_type> is_vector;
+  typedef field_traits::is_container<field_type> is_container;
+  typedef field_traits::value_type<field_type>::type value_type;
+  typedef ros::message_traits::IsSimple<value_type> is_simple;
+  typedef ros::message_traits::IsFixedSize<value_type> is_fixed_size;
+  typedef ros::message_traits::IsMessage<value_type> is_message;
+
+  field_@field@(const Message& message) : Field(message) {}
+  virtual ~field_@field@() {}
+
+  const char* getName() const { return "@field@"; }
+  const char* getDataType() const { return "@field_type@"; }
+  const char* getValueType() const { return "@value_type@"; }
+  std::size_t getIndex() const { return @field_index@; }
+  std::size_t getSize() const { return field_traits::size<field_type>::value(); }
+  std::size_t getSize(const message_type& instance) const  { return field_traits::size<field_type>::value(reference(instance)); }
+  const std::type_info& getTypeId() const { return typeid(field_type); }
+
+  bool isArray() const     { return is_array::value; }
+  bool isVector() const    { return is_vector::value; }
+  bool isContainer() const { return is_container::value; }
+  bool isSimple() const    { return is_simple::value; }
+  bool isFixedSize() const { return is_fixed_size::value; }
+  bool isMessage() const   { return is_message::value; }
+
+  field_type& reference(message_type& instance) const { return instance.@field@; }
+  const field_type& reference(const message_type& instance) const { return instance.@field@; }
+
+  FieldPtr access(Accessor& accessor) const { return impl::Accessor::access(*this, accessor); }
+  FieldPtr access(ConstAccessor& accessor) const { return impl::ConstAccessor::access(*this, accessor); }
+};
+
+}}}} // namespace

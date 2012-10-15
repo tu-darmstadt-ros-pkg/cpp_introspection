@@ -1,0 +1,329 @@
+//=================================================================================================
+// Copyright (c) 2011, Johannes Meyer, TU Darmstadt
+// All rights reserved.
+
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//     * Neither the name of the Flight Systems and Automatic Control group,
+//       TU Darmstadt, nor the names of its contributors may be used to
+//       endorse or promote products derived from this software without
+//       specific prior written permission.
+
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
+// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//=================================================================================================
+
+#include <introspection/message.h>
+#include <introspection/field.h>
+
+#include <@package@/@message@.h>
+#include <ros/message_traits.h>
+
+namespace cpp_introspection {
+namespace @package@ {
+namespace @message@ {
+
+typedef ::@package@::@message@ MessageType;
+
+namespace impl {
+
+  struct Introspection : public Message {
+    Introspection(const Package& package);
+    virtual ~Introspection() {}
+
+    const char* getName() const;
+    const char* getDataType() const;
+    const char* getMD5Sum() const;
+    const char* getDefinition() const;
+    const std::type_info& getTypeId() const;
+
+    bool isSimple() const;
+    bool isFixedSize() const;
+    bool hasHeader() const;
+    ::std_msgs::Header* getHeader(const VoidPtr& instance) const;
+    const ::std_msgs::Header* getHeader(const VoidConstPtr& instance) const;
+    std::string* getFrameId(const VoidPtr& instance) const;
+    const std::string* getFrameId(const VoidConstPtr& instance) const;
+    ros::Time* getTimeStamp(const VoidPtr& instance) const;
+    const ros::Time* getTimeStamp(const VoidConstPtr& instance) const;
+
+    VoidPtr createInstance() const;
+    void serialize(ros::serialization::OStream& stream, const VoidConstPtr& instance) const;
+    std::size_t serializationLength(const VoidConstPtr& instance) const;
+    VoidPtr deserialize(ros::serialization::IStream& stream, const VoidPtr& instance = VoidPtr()) const;
+
+    MessagePtr introspect(void *instance) const;
+    MessagePtr introspect(void const *instance) const;
+  };
+
+  struct ConstAccessor : public Introspection, public cpp_introspection::ConstAccessor {
+    const MessageType& instance_;
+
+    ConstAccessor(const Introspection& message,  const MessageType& instance)
+      : Introspection(message)
+      , instance_(instance)
+    {
+      for(V_Field::iterator it = fields_.begin(); it != fields_.end(); ++it) {
+        FieldPtr& field = *it;
+        field = field->access(*this);
+        fields_by_name_[field->getName()] = field;
+      }
+    }
+    virtual ~ConstAccessor() {}
+    virtual bool hasInstance() const { return true; }
+
+    template <class FieldType, bool is_container = FieldType::is_container::value> class FieldAccess;
+
+    template <class FieldType>
+    class FieldAccess<FieldType,false> : public FieldType {
+    private:
+      const MessageType& instance_;
+
+    protected:
+      mutable MessagePtr expanded_;
+
+    public:
+      FieldAccess(const FieldType& field, const MessageType& instance) : FieldType(field), instance_(instance) {}
+      virtual ~FieldAccess() {}
+
+      virtual bool hasInstance() const { return true; }
+      virtual boost::any get(std::size_t i) const { return boost::any(FieldType::reference(instance_)); }
+      virtual MessagePtr expand(std::size_t i) const {
+        if (expanded_) return expanded_;
+        MessagePtr message(messageByTypeId(typeid(typename FieldType::value_type)));
+        if (!message) {
+          ROS_WARN_NAMED("cpp_introspection", "failed to expand field %s of type %s (unknown type)", FieldType::getName(), FieldType::getDataType());
+          return MessagePtr();
+        }
+        expanded_ = message->introspect(&(FieldType::reference(instance_)));
+        return expanded_;
+      }
+    };
+
+    template <class FieldType>
+    class FieldAccess<FieldType,true> : public FieldType {
+    private:
+      const MessageType& instance_;
+
+    protected:
+      mutable std::vector<MessagePtr> expanded_;
+
+    public:
+      FieldAccess(const FieldType& field, const MessageType& instance) : FieldType(field), instance_(instance), expanded_(field.size()) {}
+      virtual ~FieldAccess() {}
+
+      virtual bool hasInstance() const { return true; }
+      virtual boost::any get(std::size_t i) const { return boost::any(FieldType::reference(instance_)[i]); }
+      virtual std::size_t size() const { return FieldType::reference(instance_).size(); }
+      virtual bool empty() const { return FieldType::reference(instance_).empty(); }
+      virtual std::size_t max_size() const { return FieldType::reference(instance_).max_size(); }
+      virtual MessagePtr expand(std::size_t i) const {
+        if (i < expanded_.size() && expanded_[i]) return expanded_[i];
+        MessagePtr message(messageByTypeId(typeid(typename FieldType::value_type)));
+        if (!message) {
+          ROS_WARN_NAMED("cpp_introspection", "failed to expand field %s of type %s (unknown type)", FieldType::getName(), FieldType::getDataType());
+          return MessagePtr();
+        }
+        if (i >= expanded_.size()) expanded_.resize(i);
+        expanded_[i] = message->introspect(&(FieldType::reference(instance_)[i]));
+        return expanded_[i];
+      }
+    };
+
+    template <class FieldType>
+    static FieldPtr access(const FieldType& field, cpp_introspection::ConstAccessor& accessor)
+    { return FieldPtr(new FieldAccess<FieldType>(field, static_cast<ConstAccessor&>(accessor).instance_)); }
+  };
+
+  struct Accessor : public Introspection, public cpp_introspection::Accessor {
+    MessageType& instance_;
+
+    Accessor(const Introspection& message, MessageType& instance)
+      : Introspection(message)
+      , instance_(instance)
+    {
+      for(V_Field::iterator it = fields_.begin(); it != fields_.end(); ++it) {
+        FieldPtr& field = *it;
+        field = field->access(*this);
+        fields_by_name_[field->getName()] = field;
+      }
+    }
+    virtual ~Accessor() {}
+    virtual bool hasInstance() const { return true; }
+
+    template <class FieldType, bool is_container = FieldType::is_container::value> class FieldAccess;
+
+    template <class FieldType>
+    class FieldAccess<FieldType,false> : public ConstAccessor::FieldAccess<FieldType,false> {
+    private:
+      MessageType& instance_;
+      using ConstAccessor::FieldAccess<FieldType,false>::expanded_;
+
+    public:
+      FieldAccess(const FieldType& field, MessageType& instance) : ConstAccessor::FieldAccess<FieldType,false>(field, instance), instance_(instance) {}
+      virtual ~FieldAccess() {}
+
+      virtual void setAny(const boost::any& value, std::size_t i) const { FieldType::reference(instance_) = boost::any_cast<typename FieldType::value_type>(value); }
+      virtual MessagePtr expand(std::size_t i) const {
+        if (expanded_) return expanded_;
+        MessagePtr message(messageByTypeId(typeid(typename FieldType::value_type)));
+        if (!message) {
+          ROS_WARN_NAMED("cpp_introspection", "failed to expand field %s of type %s (unknown type)", FieldType::getName(), FieldType::getDataType());
+          return MessagePtr();
+        }
+        expanded_ = message->introspect(&(FieldType::reference(instance_)));
+        return expanded_;
+      }
+    };
+
+    template <class FieldType>
+    class FieldAccess<FieldType,true> : public ConstAccessor::FieldAccess<FieldType,true> {
+    private:
+      MessageType& instance_;
+      using ConstAccessor::FieldAccess<FieldType,true>::expanded_;
+
+    public:
+      FieldAccess(const FieldType& field, MessageType& instance) : ConstAccessor::FieldAccess<FieldType,true>(field, instance), instance_(instance) {}
+      virtual ~FieldAccess() {}
+
+      virtual void setAny(const boost::any& value, std::size_t i) const { FieldType::reference(instance_)[i] = boost::any_cast<typename FieldType::value_type>(value); }
+      virtual MessagePtr expand(std::size_t i) const {
+        if (i < expanded_.size() && expanded_[i]) return expanded_[i];
+        MessagePtr message(messageByTypeId(typeid(typename FieldType::value_type)));
+        if (!message) {
+          ROS_WARN_NAMED("cpp_introspection", "failed to expand field %s of type %s (unknown type)", FieldType::getName(), FieldType::getDataType());
+          return MessagePtr();
+        }
+        if (i >= expanded_.size()) expanded_.resize(i);
+        expanded_[i] = message->introspect(&(FieldType::reference(instance_)[i]));
+        return expanded_[i];
+      }
+    };
+
+    template <class FieldType>
+    static FieldPtr access(const FieldType& field, cpp_introspection::Accessor& accessor)
+    { return FieldPtr(new FieldAccess<FieldType>(field, static_cast<Accessor&>(accessor).instance_)); }
+  };
+
+  const char* Introspection::getName() const
+  {
+    return "@message@";
+  }
+
+  const char* Introspection::getDataType() const    { return ros::message_traits::DataType<MessageType>::value(); }
+  const char* Introspection::getMD5Sum() const      { return ros::message_traits::MD5Sum<MessageType>::value(); }
+  const char* Introspection::getDefinition() const  { return ros::message_traits::Definition<MessageType>::value(); }
+
+  const std::type_info& Introspection::getTypeId() const { return typeid(MessageType); }
+
+  bool Introspection::isSimple() const              { return ros::message_traits::isSimple<MessageType>(); }
+  bool Introspection::isFixedSize() const           { return ros::message_traits::isFixedSize<MessageType>(); }
+  bool Introspection::hasHeader() const             { return ros::message_traits::hasHeader<MessageType>(); }
+
+  ::std_msgs::Header* Introspection::getHeader(const VoidPtr& instance) const {
+    MessageType::Ptr x = boost::shared_static_cast<MessageType>(instance);
+    if (!x) return 0;
+    return ros::message_traits::Header<MessageType>::pointer(*x);
+  }
+
+  const ::std_msgs::Header* Introspection::getHeader(const VoidConstPtr& instance) const {
+    MessageType::ConstPtr x = boost::shared_static_cast<MessageType const>(instance);
+    if (!x) return 0;
+    return ros::message_traits::Header<MessageType>::pointer(*x);
+  }
+
+  std::string* Introspection::getFrameId(const VoidPtr& instance) const {
+    MessageType::Ptr x = boost::shared_static_cast<MessageType>(instance);
+    if (!x) return 0;
+    return ros::message_traits::FrameId<MessageType>::pointer(*x);
+  }
+
+  const std::string* Introspection::getFrameId(const VoidConstPtr& instance) const {
+    MessageType::ConstPtr x = boost::shared_static_cast<MessageType const>(instance);
+    if (!x) return 0;
+    return ros::message_traits::FrameId<MessageType>::pointer(*x);
+  }
+
+  ros::Time* Introspection::getTimeStamp(const VoidPtr& instance) const {
+    MessageType::Ptr x = boost::shared_static_cast<MessageType>(instance);
+    if (!x) return 0;
+    return ros::message_traits::TimeStamp<MessageType>::pointer(*x);
+  }
+
+  const ros::Time* Introspection::getTimeStamp(const VoidConstPtr& instance) const {
+    MessageType::ConstPtr x = boost::shared_static_cast<MessageType const>(instance);
+    if (!x) return 0;
+    return ros::message_traits::TimeStamp<MessageType>::pointer(*x);
+  }
+
+  VoidPtr Introspection::createInstance() const
+  {
+    return VoidPtr(new MessageType());
+  }
+
+  void Introspection::serialize(ros::serialization::OStream& stream, const VoidConstPtr& instance) const
+  {
+    MessageType::ConstPtr x = boost::shared_static_cast<MessageType const>(instance);
+    ros::serialization::serialize(stream, *x);
+  }
+
+  std::size_t Introspection::serializationLength(const VoidConstPtr& instance) const
+  {
+    MessageType::ConstPtr x = boost::shared_static_cast<MessageType const>(instance);
+    return ros::serialization::serializationLength(*x);
+  }
+
+  VoidPtr Introspection::deserialize(ros::serialization::IStream& stream, const VoidPtr& instance) const
+  {
+    MessageType::Ptr x = boost::shared_static_cast<MessageType>(instance);
+    if (!x) x = boost::static_pointer_cast<MessageType>(createInstance());
+    ros::serialization::deserialize(stream, *x);
+    return instance;
+  }
+
+  MessagePtr Introspection::introspect(void *instance) const
+  {
+    MessageType *x = static_cast<MessageType *>(instance);
+    if (!x) return MessagePtr();
+    return MessagePtr(new Accessor(*this, *x));
+  }
+
+  MessagePtr Introspection::introspect(void const *instance) const
+  {
+    MessageType const *x = static_cast<MessageType const *>(instance);
+    if (!x) return MessagePtr();
+    return MessagePtr(new ConstAccessor(*this, *x));
+  }
+} // namespace impl
+}}} // namespace
+
+@_field_includes@
+
+namespace cpp_introspection {
+namespace @package@ {
+namespace @message@ {
+
+impl::Introspection::Introspection(const Package& package)
+  : Message(package)
+{
+@_field_initializers@
+}
+
+MessagePtr createIntrospection(const Package& package) {
+  return MessagePtr(new impl::Introspection(package));
+}
+
+}}} // namespace
