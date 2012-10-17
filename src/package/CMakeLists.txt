@@ -2,15 +2,12 @@ if(NOT DEFINED package)
   message(SEND_FATAL "You have to define variable package to determine the package for which introspection library is going to be built.")
   return()
 endif(NOT DEFINED package)
-message(STATUS "Building introspection library for package ${package}")
 set(CMAKE_BUILD_TYPE MinSizeRel)
 
-# Find dependent packages
-find_package(roscpp_serialization REQUIRED)
-find_package(roscpp_traits REQUIRED)
-find_package(rostime REQUIRED)
-set(${package}_INCLUDE_DIRS ${${package}_INCLUDE_DIRS} ${roscpp_serialization_INCLUDE_DIRS} ${roscpp_traits_INCLUDE_DIRS} ${rostime_INCLUDE_DIRS})
-set(${package}_LIBRARIES ${${package}_LIBRARIES} ${roscpp_serialization_LIBRARIES} ${roscpp_traits_LIBRARIES} ${rostime_LIBRARIES})
+# Return if introspection target for package already exists
+if(TARGET introspection_${package})
+  return()
+endif()
 
 # List all messages in package ${package}
 execute_process(
@@ -31,7 +28,39 @@ if(NOT ${package}_MSGS)
   return()
 endif()
 
+# Find and iterate through dependent packages
+execute_process(
+  COMMAND rospack depends1 ${package}
+  OUTPUT_VARIABLE ${package}_DEPENDS
+  RESULT_VARIABLE ${package}_DEPENDS_RESULT
+)
+if(NOT ${${package}_DEPENDS_RESULT} EQUAL 0)
+  message(SEND_ERROR "Could not get package dependencies for package ${package}.")
+  return()
+endif()
+string(REPLACE "\n" ";" ${package}_DEPENDS "${${package}_DEPENDS}")
+list(REMOVE_ITEM ${package}_DEPENDS "")
+list(APPEND ${package}_DEPENDS std_msgs)
+list(REMOVE_ITEM ${package}_DEPENDS ${package})
+
+unset(_dependent_declarations)
+unset(_dependent_initializers)
+foreach(dependent_package ${${package}_DEPENDS})
+  message(STATUS "Package ${dependent_package} is required for ${package}")
+  introspection_add(${dependent_package})
+  list(APPEND introspection_${package}_LIBRARIES introspection_${dependent_package})
+  set(_dependent_declarations "${_dependent_declarations}#include \"../${dependent_package}/package.h\"\n")
+  set(_dependent_initializers "${_dependent_initializers}${dependent_package}::Load();\n")
+endforeach()
+list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/introspection")
+
+# Find other dependent packages
+find_package(ROS REQUIRED COMPONENTS roscpp_serialization roscpp_traits rostime)
+list(APPEND introspection_${package}_INCLUDE_DIRS ${cpp_introspection_INCLUDE_DIRECTORIES} ${ROS_INCLUDE_DIRS})
+list(APPEND introspection_${package}_LIBRARIES ${cpp_introspection_LIBRARIES} ${ROS_LIBRARIES})
+
 # Iterate over all messages and generate mex
+message(STATUS "Building introspection library for package ${package}")
 unset(introspection_${package}_SOURCES)
 unset(_message_declarations)
 unset(_message_initializers)
@@ -55,16 +84,23 @@ foreach(message ${${package}_MSGS})
   # Iterate over all fields in the message
   unset(_field_includes)
   unset(_field_initializers)
+  unset(_constant_initializers)
   set(field_index 0)
   foreach(field_pair ${${message}_FIELD_PAIRS})
-    if(${field_pair} MATCHES "^([^\ ]+)\ ([^\ ]+)$")
-      set(field ${CMAKE_MATCH_2})
+    if(${field_pair} MATCHES "^([^\ ]+)\ ([^\ ]+)=([^\ ]+)$")
+      set(constant_type ${CMAKE_MATCH_1})
+      set(constant ${CMAKE_MATCH_2})
+      set(constant_value ${CMAKE_MATCH_3})
+      set(_constant_initializers "${_constant_initializers}add(Constant(\"${constant}\", \"${constant_type}\", \"${constant_value}\"));\n")
+
+    elseif(${field_pair} MATCHES "^([^\ ]+)\ ([^\ ]+)$")
       set(field_type ${CMAKE_MATCH_1})
+      set(field ${CMAKE_MATCH_2})
       string(REGEX REPLACE "\\[.*\\]" "" value_type ${field_type})
 
       configure_file(field.cpp.in ${message}/fields/${field}.cpp @ONLY)
       set(_field_includes "${_field_includes}#include \"fields/${field}.cpp\"\n")
-      set(_field_initializers "${_field_initializers}add(FieldPtr(new fields::field_${field}(*this)));\n")
+      set(_field_initializers "${_field_initializers}add(FieldPtr(new fields::Field_${field}(*this)));\n")
 
       math(EXPR field_index "${field_index} + 1")
     endif()
@@ -73,14 +109,17 @@ foreach(message ${${package}_MSGS})
   configure_file(message.cpp.in ${message}/message.cpp @ONLY)
 
   list(APPEND introspection_${package}_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${message}/message.cpp)
-  set(_message_declarations "${_message_declarations}namespace ${message} { MessagePtr createIntrospection(const Package&); }\n")
-  set(_messags_initializers "${_messags_initializers}add(${message}::createIntrospection(*this));\n")
+  set(_message_declarations "${_message_declarations}namespace ${message} { MessagePtr Instance(); }\n")
+  set(_message_initializers "${_message_initializers}add(${message}::Instance());\n")
 endforeach()
 
-include_directories(${${package}_INCLUDE_DIRS})
+include_directories(${introspection_${package}_INCLUDE_DIRS})
 configure_file(package.cpp.in package.cpp @ONLY)
+configure_file(package.h.in package.h @ONLY)
 list(APPEND introspection_${package}_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/package.cpp)
 
 add_library(introspection_${package} SHARED ${introspection_${package}_SOURCES})
-set_target_properties(introspection_${package} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/lib/introspection")
-target_link_libraries(introspection_${package} ${${package}_LIBRARIES})
+#set_target_properties(introspection_${package} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/lib/introspection")
+target_link_libraries(introspection_${package} ${introspection_${package}_LIBRARIES})
+install(TARGETS introspection_${package} DESTINATION lib/introspection)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/package.h DESTINATION include/introspection/${package})

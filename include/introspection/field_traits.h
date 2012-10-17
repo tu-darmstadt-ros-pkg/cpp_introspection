@@ -40,43 +40,66 @@ namespace field_traits {
   template <typename T> struct is_array : public boost::false_type {};
   template <typename T> struct is_vector : public boost::false_type {};
   template <typename T> struct is_container : public boost::false_type {};
-  template <typename T> struct value_type {
+  template <typename T> struct value {
     typedef T type;
+    static type& reference(T& instance, std::size_t) { return instance; }
+    static const type& reference(const T& instance, std::size_t) { return instance; }
     static const char *name() { return ros::message_traits::DataType<T>::value(); }
   };
   template <typename T> struct size {
-    static size_t value() { return 1; }
-    static size_t value(const T&) { return 1; }
+    static std::size_t value() { return 1; }
+    static std::size_t value(const T& x) { return 1; }
+    static void resize(T& x, size_t new_size, const T& initial = T()) {}
+    static bool empty() { return false; }
+    static bool empty(const T& x) { return false; }
+    static std::size_t capacity() { return 1; }
+    static std::size_t capacity(const T& x) { return 1; }
   };
 
   // specializations for std::vector
   template <typename T> struct is_vector< std::vector<T> > : public boost::true_type {};
   template <typename T> struct is_container< std::vector<T> > : public boost::true_type {};
-  template <typename T> struct value_type< std::vector<T> > {
+  template <typename T> struct value< std::vector<T> > {
     typedef T type;
-    static const char *name() { return value_type<T>::name(); }
+    static type& reference(std::vector<T>& instance, std::size_t i) { return instance[i]; }
+    static const type& reference(const std::vector<T>& instance, std::size_t i) { return instance[i]; }
+    static const char *name() { return value<T>::name(); }
   };
   template <typename T> struct size< std::vector<T> > {
-    static size_t value() { return 0; }
-    static size_t value(const std::vector<T>& x) { return x.size(); }
+    static std::size_t value() { return 0; }
+    static std::size_t value(const std::vector<T>& x) { return x.size(); }
+    static void resize(std::vector<T>& x, size_t new_size, const T& initial = T()) { x.resize(new_size, initial); }
+    static bool empty() { return true; }
+    static bool empty(const std::vector<T>& x) { return x.empty(); }
+    static std::size_t capacity() { return 0; }
+    static std::size_t capacity(const std::vector<T>& x) { return x.capacity(); }
   };
 
   // specializations for boost::array
   template <typename T, std::size_t N> struct is_array< boost::array<T,N> > : public boost::true_type {};
   template <typename T, std::size_t N> struct is_container< boost::array<T,N> > : public boost::true_type {};
-  template <typename T, std::size_t N> struct value_type< boost::array<T,N> > {
+  template <typename T, std::size_t N> struct value< boost::array<T,N> > {
     typedef T type;
-    static const char *name() { return value_type<T>::name(); }
+    static type& reference(boost::array<T,N>& instance, std::size_t i) { return instance[i]; }
+    static const type& reference(const boost::array<T,N>& instance, std::size_t i) { return instance[i]; }
+    static const char *name() { return value<T>::name(); }
   };
   template <typename T, std::size_t N> struct size< boost::array<T,N> > {
-    static size_t value() { return N; }
-    static size_t value(const boost::array<T,N>& x) { return x.size(); }
+    static std::size_t value() { return boost::array<T,N>::size(); }
+    static std::size_t value(const boost::array<T,N>& x) { return x.size(); }
+    static void resize(boost::array<T,N>& x, size_t new_size, const T& initial = T()) {}
+    static bool empty() { return boost::array<T,N>::empty(); }
+    static bool empty(const boost::array<T,N>& x) { return x.empty(); }
+    static std::size_t capacity() { return N; }
+    static std::size_t capacity(const boost::array<T,N>& x) { return x.size(); }
   };
 
   // simple type traits
 #define INTROSPECTION_DECLARE_SIMPLE_TRAITS(_type, _name) \
-  template <> struct value_type< _type > { \
+  template <> struct value< _type > { \
     typedef _type type; \
+    static type& reference(_type& instance, std::size_t) { return instance; } \
+    static const type& reference(const _type& instance, std::size_t) { return instance; } \
     static const char *name() { return _name; } \
   }
 

@@ -33,6 +33,7 @@
 #include <boost/any.hpp>
 #include <map>
 #include <vector>
+#include <string>
 
 namespace cpp_introspection {
 
@@ -40,6 +41,7 @@ namespace cpp_introspection {
   class Message;
   class Field;
   class Type;
+  class AccessorBase;
 
   typedef boost::shared_ptr<Package const> PackagePtr;
   typedef boost::weak_ptr<Package const> PackageWPtr;
@@ -53,6 +55,7 @@ namespace cpp_introspection {
   typedef std::vector<PackagePtr> V_Package;
   typedef std::vector<MessagePtr> V_Message;
   typedef std::vector<FieldPtr> V_Field;
+  typedef std::vector<const char *> V_FieldName;
   typedef std::vector<TypePtr> V_Type;
 
   typedef std::map<std::string,PackageWPtr> M_Package;
@@ -60,7 +63,7 @@ namespace cpp_introspection {
   typedef std::map<std::string,FieldWPtr> M_Field;
   typedef std::map<std::string,TypeWPtr> M_Type;
 
-  struct CompareTypeInfo { bool operator()(const std::type_info *t1, const std::type_info *t2) { return (*t1).before(*t2); } };
+  struct CompareTypeInfo { bool operator()(const std::type_info *t1, const std::type_info *t2) const { return (*t1).before(*t2); } };
   typedef std::map<const std::type_info *,MessageWPtr,CompareTypeInfo> M_TypeInfo_Message;
 
   typedef boost::shared_ptr<void> VoidPtr;

@@ -40,7 +40,7 @@ namespace cpp_introspection {
 
   public:
     virtual ~Package() {}
-    static const PackagePtr& add(const PackagePtr& package);
+    static PackagePtr add(const PackagePtr& package);
 
     virtual const char *getName() const = 0;
     std::vector<std::string> getMessages() const;
@@ -52,12 +52,14 @@ namespace cpp_introspection {
     typedef V_Message::const_iterator const_iterator;
     const_iterator begin() const { return messages_.begin(); }
     const_iterator end() const   { return messages_.end(); }
+    std::size_t size() const     { return messages_.size(); }
 
   protected:
-    virtual const MessagePtr& add(const MessagePtr& message);
+    virtual MessagePtr add(const MessagePtr& message);
   };
 
   PackagePtr package(const std::string& pkg);
+  static inline PackagePtr package(const char* pkg) { return package(std::string(pkg)); }
   const V_Package &packages();
 
 } // namespace cpp_introspection

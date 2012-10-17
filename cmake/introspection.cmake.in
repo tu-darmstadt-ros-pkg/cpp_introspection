@@ -1,38 +1,11 @@
-set(cpp_introspection_DIR "@PROJECT_SOURCE_DIR@")
+set(cpp_introspection_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
 
 set(introspection_package_list "" CACHE INTERNAL "")
 mark_as_advanced(introspection_package_list)
 
-include(CMakeParseArguments)
 function(introspection_add package)
-  cmake_parse_arguments(introspection_add "QUIET RECURSIVE" "" "" ${ARGN})
-
   # abort if this function has already been called for this package (prevent recursive calls)
-  list(FIND introspection_package_list ${package} found)
-  if (NOT ${found} EQUAL -1)
-    return()
+  if(NOT TARGET introspection_${package})
+    add_subdirectory(${cpp_introspection_SOURCE_DIR}/src/package ${CMAKE_BINARY_DIR}/introspection/${package})
   endif()
-  set(introspection_package_list ${introspection_package_list} ${package} CACHE INTERNAL "")
-
-  # recursively call introspection_add for dependent packages
-  if(RECURSIVE)
-    execute_process(COMMAND rospack depends1 ${package}
-      RESULT_VARIABLE ${package}_rospack_result
-      OUTPUT_VARIABLE ${package}_DEPENDS
-    )
-
-    if(NOT ${${package}_rospack_result} EQUALS 0)
-      message(SEND_ERROR "Could not get dependencies of package ${package}")
-      return()
-    endif()
-    string(REPLACE "\n" " " ${package}_DEPENDS "${${package}_DEPENDS}")
-    separate_arguments(${package}_DEPENDS)
-
-    message(STATUS "Package ${package} depends on ${${package}_DEPENDS}")
-    foreach(depends ${${package}_DEPENDS})
-      introspection_add(${depends} QUIET RECURSIVE)
-    endforeach(depends)
-  endif(RECURSIVE)
-
-  add_subdirectory(${cpp_introspection_DIR}/src/package introspection/${package})
 endfunction(introspection_add)

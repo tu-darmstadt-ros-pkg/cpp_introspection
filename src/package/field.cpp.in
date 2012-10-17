@@ -29,6 +29,7 @@
 #include <@package@/@message@.h>
 #include <introspection/field.h>
 #include <introspection/field_traits.h>
+#include <introspection/accessor.h>
 
 #include <ros/message_traits.h>
 
@@ -37,27 +38,31 @@ namespace @package@ {
 namespace @message@ {
 namespace fields {
 
-struct field_@field@ : public Field {
+class Field_@field@ : public Field {
+private:
+  const Message& message_;
+
+public:
   typedef ::@package@::@message@ message_type;
   typedef message_type::_@field@_type field_type;
   typedef field_traits::is_array<field_type> is_array;
   typedef field_traits::is_vector<field_type> is_vector;
   typedef field_traits::is_container<field_type> is_container;
-  typedef field_traits::value_type<field_type>::type value_type;
+  typedef field_traits::value<field_type>::type value_type;
   typedef ros::message_traits::IsSimple<value_type> is_simple;
   typedef ros::message_traits::IsFixedSize<value_type> is_fixed_size;
   typedef ros::message_traits::IsMessage<value_type> is_message;
 
-  field_@field@(const Message& message) : Field(message) {}
-  virtual ~field_@field@() {}
+  Field_@field@(const Message& message) : message_(message) {}
+  virtual ~Field_@field@() {}
+
+  const Message& message() const { return message_; }
 
   const char* getName() const { return "@field@"; }
   const char* getDataType() const { return "@field_type@"; }
   const char* getValueType() const { return "@value_type@"; }
   std::size_t getIndex() const { return @field_index@; }
-  std::size_t getSize() const { return field_traits::size<field_type>::value(); }
-  std::size_t getSize(const message_type& instance) const  { return field_traits::size<field_type>::value(reference(instance)); }
-  const std::type_info& getTypeId() const { return typeid(field_type); }
+  const std::type_info& getTypeId() const { return typeid(value_type); }
 
   bool isArray() const     { return is_array::value; }
   bool isVector() const    { return is_vector::value; }
@@ -68,9 +73,14 @@ struct field_@field@ : public Field {
 
   field_type& reference(message_type& instance) const { return instance.@field@; }
   const field_type& reference(const message_type& instance) const { return instance.@field@; }
+  value_type& reference(message_type& instance, std::size_t i) const { return field_traits::value<field_type>::reference(instance.@field@, i); }
+  const value_type& reference(const message_type& instance, std::size_t i) const { return field_traits::value<field_type>::reference(instance.@field@, i); }
 
-  FieldPtr access(Accessor& accessor) const { return impl::Accessor::access(*this, accessor); }
-  FieldPtr access(ConstAccessor& accessor) const { return impl::ConstAccessor::access(*this, accessor); }
+  virtual std::size_t size() const { return field_traits::size<field_type>::value(); }
+  virtual bool empty() const { return field_traits::size<field_type>::empty(); }
+  virtual std::size_t capacity() const { return field_traits::size<field_type>::capacity(); }
+
+  FieldPtr access(AccessorBase& accessor) const { return Accessor<message_type>::access(*this, accessor); }
 };
 
 }}}} // namespace

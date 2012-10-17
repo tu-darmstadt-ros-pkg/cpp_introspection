@@ -51,6 +51,8 @@ int main(int argc, char **argv) {
       VoidPtr instance = message->createInstance();
       MessagePtr introspected = message->introspect(instance.get());
       print_introspection(introspected);
+      std::cout << std::endl << "...and expanded ..." << std::endl;
+      print_introspection(expand(introspected));
     }
 
   } else {

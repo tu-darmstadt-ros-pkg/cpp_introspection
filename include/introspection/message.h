@@ -39,18 +39,10 @@ namespace cpp_introspection {
 
   class Message
   {
-  protected:
-    V_Field fields_;
-    M_Field fields_by_name_;
-
-  private:
-    const Package& package_;
-
   public:
-    Message(const Package& package) : package_(package) {}
     virtual ~Message() {}
 
-    const Package& package() const { return package_; }
+//    virtual const Package& package() const = 0;
 
     virtual const char* getName() const = 0;
     virtual const char* getDataType() const = 0;
@@ -70,15 +62,16 @@ namespace cpp_introspection {
     virtual ros::Time* getTimeStamp(const VoidPtr& instance) const = 0;
     virtual const ros::Time* getTimeStamp(const VoidConstPtr& instance) const = 0;
 
-    virtual const V_Field& fields() const { return fields_; }
-    virtual FieldWPtr field(const std::string& name) const { return fields_by_name_.at(name); }
-    virtual V_string getFields(bool expand = false, const std::string& separator = ".") const;
-    virtual V_string& getFields(V_string& fields, bool expand = false, const std::string& separator = ".", const std::string& prefix = std::string()) const;
-    virtual V_string getTypes(bool expand = false) const;
-    virtual V_string& getTypes(V_string& types, bool expand = false) const;
+    virtual const V_Field& fields() const = 0;
+    virtual FieldWPtr field(const std::string& name) const = 0;
+    virtual const V_FieldName& getFieldNames() const = 0;
 
-    virtual std::vector<boost::any> getValues(bool expand = false, std::size_t index = 0) const;
-    virtual std::vector<boost::any>& getValues(std::vector<boost::any>& values, bool expand = false, std::size_t index = 0) const;
+    V_string getFields(bool expand = false, const std::string& separator = ".", const std::string& prefix = std::string()) const;
+    V_string& getFields(V_string& fields, bool expand = false, const std::string& separator = ".", const std::string& prefix = std::string()) const;
+    V_string getTypes(bool expand = false) const;
+    V_string& getTypes(V_string& types, bool expand = false) const;
+    std::vector<boost::any> getValues(bool expand = false) const;
+    std::vector<boost::any>& getValues(std::vector<boost::any>& values, bool expand = false) const;
 
     virtual VoidPtr createInstance() const = 0;
     virtual void serialize(ros::serialization::OStream& stream, const VoidConstPtr& instance) const = 0;
@@ -94,16 +87,18 @@ namespace cpp_introspection {
 
     typedef V_Field::iterator iterator;
     typedef V_Field::const_iterator const_iterator;
-    const_iterator begin() const { return fields_.begin(); }
-    const_iterator end() const   { return fields_.end(); }
-
-  protected:
-    virtual const FieldPtr& add(const FieldPtr& field);
+    const_iterator begin() const { return fields().begin(); }
+    const_iterator end() const { return fields().end(); }
+    std::size_t size() const { return fields().size(); }
   };
 
   MessagePtr messageByDataType(const std::string& data_type, const std::string& package = std::string());
+  static inline MessagePtr messageByDataType(const char* data_type, const char* package) { return messageByDataType(std::string(data_type), std::string(package)); }
   MessagePtr messageByMD5Sum(const std::string& md5sum);
+  static inline MessagePtr messageByMD5Sum(const char* md5sum) { return messageByMD5Sum(std::string(md5sum)); }
   MessagePtr messageByTypeId(const std::type_info& type_info);
+
+  MessagePtr expand(const MessagePtr& message, const std::string &separator = ".", const std::string &prefix = "");
 
 } // namespace cpp_introspection
 

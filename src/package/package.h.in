@@ -1,5 +1,5 @@
 //=================================================================================================
-// Copyright (c) 2011, Johannes Meyer, TU Darmstadt
+// Copyright (c) 2012, Johannes Meyer, TU Darmstadt
 // All rights reserved.
 
 // Redistribution and use in source and binary forms, with or without
@@ -26,43 +26,20 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <introspection/package.h>
-#include "package.h"
+#ifndef CPP_INTROSPECTION_@package@_PACKAGE_H
+#define CPP_INTROSPECTION_@package@_PACKAGE_H
 
-@_dependent_declarations@
+#include <introspection/forwards.h>
 
 namespace cpp_introspection {
 namespace @package@ {
 
-  class Introspection : public Package {
-  public:
-    Introspection();
-    const char *getName() const;
-  };
+PackagePtr Instance();
+PackagePtr Load();
 
-  Introspection::Introspection() {
-@_dependent_initializers@
-@_message_initializers@
-  }
-
-  const char *Introspection::getName() const {
-    return "@package@";
-  }
-
-  PackagePtr Load() {
-    return Package::add(PackagePtr(new Introspection()));
-  }
-
-  PackagePtr Instance() {
-    PackagePtr instance = package("@package@");
-    if (!instance) instance = Load();
-    return instance;
-  }
+@_message_declarations@
 
 } // namespace @package@
 } // namespace cpp_introspection
 
-using namespace cpp_introspection;
-extern "C" PackagePtr cpp_introspection_load_package() {
-  return @package@::Load();
-}
+#endif // CPP_INTROSPECTION_@package@_PACKAGE_H

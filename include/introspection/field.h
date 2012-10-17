@@ -31,29 +31,20 @@
 
 #include <introspection/forwards.h>
 #include <introspection/type.h>
-#include <introspection/field.h>
 
 namespace cpp_introspection {
 
-  class Accessor {};
-  class ConstAccessor {};
-
   class Field
   {
-  private:
-    const Message& message_;
-
   public:
-    Field(const Message& message) : message_(message) { }
     virtual ~Field() { }
 
-    const Message& message() const { return message_; }
+    virtual const Message& message() const = 0;
 
     virtual const char* getName() const = 0;
     virtual const char* getDataType() const = 0;
     virtual const char* getValueType() const = 0;
     virtual std::size_t getIndex() const = 0;
-    virtual std::size_t getSize() const = 0;
     virtual const std::type_info& getTypeId() const = 0;
     virtual TypePtr getType() const { return type(getValueType()); }
 
@@ -68,18 +59,16 @@ namespace cpp_introspection {
     virtual boost::any get(std::size_t i = 0) const { return boost::any(); }
     template <typename T> T as(std::size_t i = 0) const { return getType()->as<T>(get(i)); }
 
-    virtual void setAny(const boost::any& value, std::size_t = 0) const { }
+    virtual void setAny(const boost::any& value, std::size_t i = 0) const { }
     template <typename T> void set(const T& value, std::size_t i = 0) const { setAny(getType()->from(value), i); }
 
-    // capacity
     virtual std::size_t size() const { return 1; }
-    virtual void resize(size_t size) const {}
+    virtual void resize(size_t new_size) const {}
     virtual bool empty() const { return false; }
-    virtual std::size_t max_size() const { return 1; }
+    virtual std::size_t capacity() const { return 1; }
 
     virtual MessagePtr expand(std::size_t i = 0) const;
-    virtual FieldPtr access(Accessor& accessor) const = 0;
-    virtual FieldPtr access(ConstAccessor& accessor) const = 0;
+    virtual FieldPtr access(AccessorBase& accessor) const = 0;
   };
 
 } // namespace cpp_introspection

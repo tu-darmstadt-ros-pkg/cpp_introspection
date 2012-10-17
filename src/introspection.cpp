@@ -29,6 +29,7 @@
 #include <introspection/field.h>
 #include <introspection/type.h>
 #include <introspection/introspection.h>
+#include <introspection/message_expansion.h>
 
 #include <dlfcn.h>
 #include <boost/filesystem.hpp>
@@ -44,6 +45,7 @@ namespace cpp_introspection {
 
   PackagePtr package(const std::string& pkg)
   {
+    if (!g_packages.count(pkg)) return PackagePtr();
     return g_packages[pkg].lock();
   }
 
@@ -55,20 +57,24 @@ namespace cpp_introspection {
   {
     if (!package.empty()) return messageByDataType(package + "/" + data_type);
     if (data_type == "Header") return g_messages_by_name[ros::message_traits::datatype<std_msgs::Header>()].lock();
+    if (!g_messages_by_name.count(data_type)) return MessagePtr();
     return g_messages_by_name[data_type].lock();
   }
 
   MessagePtr messageByMD5Sum(const std::string& md5sum)
   {
+    if (!g_messages_by_md5sum.count(md5sum)) return MessagePtr();
     return g_messages_by_md5sum[md5sum].lock();
   }
 
   MessagePtr messageByTypeId(const std::type_info &type_info) {
+    if (!g_messages_by_typeid.count(&type_info)) return MessagePtr();
     return g_messages_by_typeid[&type_info].lock();
   }
 
-  const PackagePtr& Package::add(const PackagePtr& package)
+  PackagePtr Package::add(const PackagePtr& package)
   {
+    if (g_packages.count(package->getName())) return g_packages[package->getName()].lock();
     g_repository.push_back(package);
     g_packages[package->getName()] = package;
     return package;
@@ -88,8 +94,9 @@ namespace cpp_introspection {
     return messageByDataType(std::string(getName()) + "/" + message);
   }
 
-  const MessagePtr& Package::add(const MessagePtr& message)
+  MessagePtr Package::add(const MessagePtr& message)
   {
+    if (g_messages_by_name.count(message->getDataType())) return g_messages_by_name[message->getDataType()].lock();
     messages_.push_back(message);
     g_messages_by_name[message->getDataType()] = message;
     g_messages_by_md5sum[message->getMD5Sum()] = message;
@@ -97,17 +104,40 @@ namespace cpp_introspection {
     return message;
   }
 
-  const FieldPtr& Message::add(const FieldPtr& field)
+  MessagePtr expand(const MessagePtr& message, const std::string &separator, const std::string &prefix)
   {
-    fields_.push_back(field);
-    fields_by_name_[field->getName()] = field;
-    return field;
+    return MessagePtr(new ExpandedMessage(message, separator, prefix));
   }
 
-  V_string Message::getFields(bool expand, const std::string& separator) const
+  void ExpandedMessage::expand(const MessagePtr &message, const std::string& prefix) {
+    for(Message::const_iterator i = message->begin(); i != message->end(); i++) {
+      FieldPtr field = *i;
+
+      for(std::size_t j = 0; j < field->size(); j++) {
+        std::string field_name = (!prefix.empty() ? prefix + separator_ : "") + field->getName();
+        if (field->isContainer()) field_name += boost::lexical_cast<std::string>(j);
+
+        if (field->isMessage()) {
+          MessagePtr expanded(field->expand(j));
+          if (!expanded) {
+            ROS_WARN("Expansion of %s failed: Could not expand field %s with unknown type %s", getDataType(), field->getName(), field->getDataType());
+            continue;
+          }
+          expand(expanded, field_name);
+        } else {
+          FieldPtr expanded(new ExpandedField(*field, field_name, j));
+          fields_.push_back(expanded);
+          fields_by_name_[field_name] = expanded;
+          field_names_.push_back(expanded->getName());
+        }
+      }
+    }
+  }
+
+  V_string Message::getFields(bool expand, const std::string& separator, const std::string& prefix) const
   {
     V_string fields;
-    return getFields(fields, expand);
+    return getFields(fields, expand, separator, prefix);
   }
 
   V_string& Message::getFields(V_string& fields, bool expand, const std::string& separator, const std::string& prefix) const
@@ -115,9 +145,8 @@ namespace cpp_introspection {
     for(const_iterator it = begin(); it != end(); ++it) {
       FieldPtr field = *it;
       std::string base(prefix + field->getName());
-      std::size_t index = 0;
 
-      do {
+      for (std::size_t index = 0; index < field->size(); ++index) {
         std::string name(base);
         if (field->isArray()) name = name + boost::lexical_cast<std::string>(index);
 
@@ -128,11 +157,11 @@ namespace cpp_introspection {
             continue;
           }
           expanded->getFields(fields, expand, separator, name + separator);
-          continue;
-        }
 
-        fields.push_back(name);
-      } while(field->isArray() && ++index < field->getSize());
+        } else {
+          fields.push_back(name);
+        }
+      }
     }
 
     return fields;
@@ -148,9 +177,8 @@ namespace cpp_introspection {
   {
     for(const_iterator it = begin(); it != end(); ++it) {
       FieldPtr field = *it;
-      std::size_t index = 0;
 
-      do {
+      for (std::size_t index = 0; index < field->size(); ++index) {
         if (expand && field->isMessage()) {
           MessagePtr expanded = field->expand(index);
           if (!expanded) {
@@ -158,32 +186,30 @@ namespace cpp_introspection {
             continue;
           }
           expanded->getTypes(types, expand);
-          continue;
-        }
 
-        types.push_back(field->isArray() ? field->getValueType() : field->getDataType());
-      } while(field->isArray() && ++index < field->getSize());
+        } else {
+          types.push_back(field->isArray() ? field->getValueType() : field->getDataType());
+        }
+      }
     }
 
     return types;
   }
 
-  std::vector<boost::any> Message::getValues(bool expand, std::size_t index) const
+  std::vector<boost::any> Message::getValues(bool expand) const
   {
     std::vector<boost::any> values;
-    if (!hasInstance()) return values;
     return getValues(values, expand);
   }
 
-  std::vector<boost::any>& Message::getValues(std::vector<boost::any>& values, bool expand, std::size_t index) const
+  std::vector<boost::any>& Message::getValues(std::vector<boost::any>& values, bool expand) const
   {
     if (!hasInstance()) return values;
 
     for(const_iterator it = begin(); it != end(); ++it) {
       FieldPtr field = *it;
-      std::size_t index = 0;
 
-      do {
+      for (std::size_t index = 0; index < field->size(); ++index) {
         if (expand && field->isMessage()) {
           MessagePtr expanded = field->expand(index);
           if (!expanded) {
@@ -191,11 +217,11 @@ namespace cpp_introspection {
             continue;
           }
           expanded->getValues(values, expand);
-          continue;
-        }
 
-        values.push_back(field->get(index));
-      } while(field->isArray() && ++index < field->getSize());
+        } else {
+          values.push_back(field->get(index));
+        }
+      }
     }
 
     return values;
@@ -236,14 +262,15 @@ namespace cpp_introspection {
         return;
       }
 
-      Package* (*load_fcn)() = (Package* (*)()) dlsym(library, "cpp_introspection_load_package");
+      typedef PackagePtr (*LoadFunction)();
+      LoadFunction load_fcn = (LoadFunction) dlsym(library, "cpp_introspection_load_package");
       error = dlerror();
       if (error || !load_fcn) {
         ROS_WARN_NAMED(ROS_PACKAGE_NAME, "%s", error);
         dlclose(library);
         return;
       }
-      Package *package __attribute__((unused)) = (*load_fcn)();
+      PackagePtr package __attribute__((unused)) = (*load_fcn)();
 
       ROS_INFO_STREAM_NAMED(ROS_PACKAGE_NAME, "Successfully loaded cpp_introspection library " << path);
       g_loaded_libraries.push_back(path.string());
