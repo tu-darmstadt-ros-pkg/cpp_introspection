@@ -9,6 +9,39 @@ if(TARGET introspection_${package})
   return()
 endif()
 
+# Find message package
+find_package(${package} QUIET)
+if(${package}_FOUND)
+  message(STATUS "Found ${package} at ${${package}_DIR}")
+  include_directories(${${package}_INCLUDE_DIRS})
+else()
+  execute_process(
+    COMMAND rospack find ${package}
+    OUTPUT_VARIABLE ${package}_PACKAGE_PATH
+    RESULT_VARIABLE ${package}_PACKAGE_PATH_RESULT
+  )
+  if(NOT ${${package}_PACKAGE_PATH_RESULT} EQUAL 0)
+    message(SEND_ERROR "Could not find package ${package}")
+    return()
+  endif()
+  string(REPLACE "\n" "" ${package}_PACKAGE_PATH ${${package}_PACKAGE_PATH})
+  message(STATUS "Found ${package} at ${${package}_PACKAGE_PATH}")
+
+  execute_process(
+    COMMAND rospack cflags-only-I ${package}
+    OUTPUT_VARIABLE ${package}_INCLUDE_DIRS
+    RESULT_VARIABLE ${package}_INCLUDE_DIRS_RESULT
+  )
+  if(NOT ${${package}_INCLUDE_DIRS_RESULT} EQUAL 0)
+    message(SEND_ERROR "Could not get include directories for package ${package}")
+    return()
+  endif()
+  string(REPLACE "\n" "" ${package}_INCLUDE_DIRS ${${package}_INCLUDE_DIRS})
+  string(REPLACE " " ";" ${package}_INCLUDE_DIRS ${${package}_INCLUDE_DIRS})
+  list(REMOVE_ITEM ${package}_INCLUDE_DIRS "")
+  include_directories(${${package}_INCLUDE_DIRS})
+endif()
+
 # List all messages in package ${package}
 execute_process(
   COMMAND rosmsg package ${package}
@@ -16,7 +49,7 @@ execute_process(
   RESULT_VARIABLE ${package}_MSGS_RESULT
 )
 if(NOT ${${package}_MSGS_RESULT} EQUAL 0)
-  message(SEND_ERROR "Could not list all messages from package ${package}.")
+  message(SEND_ERROR "Could not list messages from package ${package}")
   return()
 endif()
 string(REPLACE "\n" ";" ${package}_MSGS "${${package}_MSGS}")

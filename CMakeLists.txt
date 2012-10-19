@@ -15,8 +15,5 @@ add_subdirectory(src)
 
 install(FILES stack.xml DESTINATION share/${PROJECT_NAME})
 install(FILES manifest.xml DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY include/ DESTINATION include)
 
-install(DIRECTORY include/
-        DESTINATION include
-        FILES_MATCHING PATTERN "*.h"
-        PATTERN ".svn" EXCLUDE)
