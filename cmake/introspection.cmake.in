@@ -3,6 +3,8 @@ set(cpp_introspection_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
 set(introspection_package_list "" CACHE INTERNAL "")
 mark_as_advanced(introspection_package_list)
 
+include_directories(${CMAKE_BINARY_DIR})
+
 function(introspection_add package)
   # abort if this function has already been called for this package (prevent recursive calls)
   if(NOT TARGET introspection_${package})

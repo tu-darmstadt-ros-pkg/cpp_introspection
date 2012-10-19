@@ -7,7 +7,6 @@ install(TARGETS cpp_introspection DESTINATION lib)
 
 option(BUILD_TEST "If true, some introspection libraries for std_msgs and a small test executable is built." OFF)
 if(BUILD_TEST)
-  include(introspection)
   introspection_add(std_msgs)
 
   add_executable(introspection_test test.cpp)

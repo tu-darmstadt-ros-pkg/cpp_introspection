@@ -34,7 +34,6 @@
 #include <introspection/field_traits.h>
 
 #include <boost/type_traits.hpp>
-#include <boost/type_traits/conditional.hpp>
 #include <boost/utility/enable_if.hpp>
 
 namespace cpp_introspection {
@@ -83,8 +82,8 @@ class AccessorBase {};
     private:
       const Accessor& accessor_;
       mutable V_Message expanded_;
-      typedef typename boost::conditional<is_const::value, const typename FieldType::field_type, typename FieldType::field_type>::type field_type;
-      typedef typename boost::conditional<is_const::value, const typename FieldType::value_type, typename FieldType::value_type>::type value_type;
+      typedef typename boost::mpl::if_<is_const, const typename FieldType::field_type, typename FieldType::field_type>::type field_type;
+      typedef typename boost::mpl::if_<is_const, const typename FieldType::value_type, typename FieldType::value_type>::type value_type;
 
     public:
       FieldAccess(const FieldType& field, const Accessor& accessor) : FieldType(field), accessor_(accessor), expanded_(size()) {}
