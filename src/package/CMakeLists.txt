@@ -119,7 +119,10 @@ configure_file(package.h.in package.h @ONLY)
 list(APPEND introspection_${package}_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/package.cpp)
 
 add_library(introspection_${package} SHARED ${introspection_${package}_SOURCES})
-#set_target_properties(introspection_${package} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/lib/introspection")
 target_link_libraries(introspection_${package} ${introspection_${package}_LIBRARIES})
+
+  # introspection libraries are private (prevent name clashes if CMAKE_LIBRARY_OUTPUT_DIRECTORY is set)
+  set_target_properties(introspection_${package} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
 install(TARGETS introspection_${package} DESTINATION lib/introspection)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/package.h DESTINATION include/introspection/${package})
