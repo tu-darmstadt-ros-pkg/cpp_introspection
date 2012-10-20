@@ -148,14 +148,19 @@ endforeach()
 
 include_directories(${introspection_${package}_INCLUDE_DIRS})
 configure_file(package.cpp.in package.cpp @ONLY)
-configure_file(package.h.in package.h @ONLY)
+configure_file(package.h.in ${CMAKE_BINARY_DIR}/include/introspection/${package}/package.h @ONLY)
 list(APPEND introspection_${package}_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/package.cpp)
 
 add_library(introspection_${package} SHARED ${introspection_${package}_SOURCES})
 target_link_libraries(introspection_${package} ${introspection_${package}_LIBRARIES})
 
-  # introspection libraries are private (prevent name clashes if CMAKE_LIBRARY_OUTPUT_DIRECTORY is set)
+if(DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+  set_target_properties(introspection_${package} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/introspection)
+elseif(DEFINED LIBRARY_OUTPUT_PATH)
+  set_target_properties(introspection_${package} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/introspection)
+else()
   set_target_properties(introspection_${package} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+endif()
 
 install(TARGETS introspection_${package} DESTINATION lib/introspection)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/package.h DESTINATION include/introspection/${package})
+install(FILES ${CMAKE_BINARY_DIR}/include/introspection/${package}/package.h DESTINATION include/introspection/${package})

@@ -27,7 +27,7 @@
 //=================================================================================================
 
 #include <introspection/package.h>
-#include "package.h"
+#include <introspection/@package@/package.h>
 
 @_dependent_declarations@
 
