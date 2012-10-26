@@ -35,10 +35,11 @@
 
 #include <boost/type_traits.hpp>
 #include <boost/utility/enable_if.hpp>
+#include <boost/mpl/if.hpp>
 
 namespace cpp_introspection {
 
-class AccessorBase {};
+  class AccessorBase {};
 
   template <typename T>
   class Accessor : public AccessorBase, public MessageTemplate<typename boost::remove_const<T>::type> {
@@ -48,12 +49,12 @@ class AccessorBase {};
 
   private:
     const Message& message_;
-    T& instance_;
+    boost::shared_ptr<T> instance_;
     V_Field fields_;
     M_Field fields_by_name_;
 
   public:
-    Accessor(const Message& message, T& instance)
+    Accessor(const Message& message, const boost::shared_ptr<T>& instance)
       : message_(message)
       , instance_(instance)
     {
@@ -66,8 +67,11 @@ class AccessorBase {};
     }
     virtual ~Accessor() {}
 
-    bool hasInstance() const { return true; }
-    T& instance() const { return instance_; }
+    bool hasInstance() const { return instance_.get(); }
+    VoidPtr getInstance() const { return is_const::value ? VoidPtr() : boost::const_pointer_cast<void>(getConstInstance()); }
+    VoidConstPtr getConstInstance() const { return boost::shared_static_cast<void const>(instance_); }
+
+    T& instance() const { return *instance_; }
 
     const char *getName() const { return message_.getName(); }
 
@@ -76,14 +80,20 @@ class AccessorBase {};
     FieldWPtr field(const std::string& name) const { return fields_by_name_.at(name); }
     const V_FieldName& getFieldNames() const { return message_.getFieldNames(); }
 
+    void serialize(ros::serialization::OStream& stream, const VoidConstPtr&) const { message_.serialize(stream, getConstInstance()); }
+    ros::SerializedMessage serialize(const VoidConstPtr&) const { return message_.serialize(getConstInstance()); }
+    std::size_t serializationLength(const VoidConstPtr&) const { return message_.serializationLength(getConstInstance()); }
+    VoidPtr deserialize(ros::serialization::IStream& stream, const VoidPtr&) const { return is_const::value ? VoidPtr() : message_.deserialize(stream, getInstance()); }
+
+
   private:
-    template <class FieldType, typename Enabled = void>
+    template <typename FieldType>
     class FieldAccess : public FieldType {
     private:
       const Accessor& accessor_;
       mutable V_Message expanded_;
-      typedef typename boost::mpl::if_<is_const, const typename FieldType::field_type, typename FieldType::field_type>::type field_type;
-      typedef typename boost::mpl::if_<is_const, const typename FieldType::value_type, typename FieldType::value_type>::type value_type;
+      typedef typename boost::mpl::if_<boost::is_const<T>, const typename FieldType::field_type, typename FieldType::field_type>::type field_type;
+      typedef typename boost::mpl::if_<boost::is_const<T>, const typename FieldType::value_type, typename FieldType::value_type>::type value_type;
 
     public:
       FieldAccess(const FieldType& field, const Accessor& accessor) : FieldType(field), accessor_(accessor), expanded_(size()) {}
@@ -126,20 +136,36 @@ class AccessorBase {};
     }
   };
 
+  namespace {
+    struct null_deleter { void operator()(void const *) const { } };
+  }
+
   template <typename T>
   MessagePtr MessageTemplate<T>::introspect(void *instance) const
   {
-    T *x = static_cast<T *>(instance);
+    return introspect(VoidPtr(instance, null_deleter()));
+  }
+
+  template <typename T>
+  MessagePtr MessageTemplate<T>::introspect(const VoidPtr& instance) const
+  {
+    boost::shared_ptr<T> x(boost::shared_static_cast<T>(instance));
     if (!x) return MessagePtr();
-    return MessagePtr(new Accessor<T>(*this, *x));
+    return MessagePtr(new Accessor<T>(*this, x));
   }
 
   template <typename T>
   MessagePtr MessageTemplate<T>::introspect(void const *instance) const
   {
-    T const *x = static_cast<T const *>(instance);
+    return introspect(VoidConstPtr(instance, null_deleter()));
+  }
+
+  template <typename T>
+  MessagePtr MessageTemplate<T>::introspect(const VoidConstPtr& instance) const
+  {
+    boost::shared_ptr<T const> x(boost::shared_static_cast<T const>(instance));
     if (!x) return MessagePtr();
-    return MessagePtr(new Accessor<T const>(*this, *x));
+    return MessagePtr(new Accessor<T const>(*this, x));
   }
 
 } // namespace cpp_introspection

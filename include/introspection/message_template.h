@@ -60,11 +60,14 @@ namespace cpp_introspection {
     const ros::Time* getTimeStamp(const VoidConstPtr& instance) const;
 
     VoidPtr createInstance() const;
-    void serialize(ros::serialization::OStream& stream, const VoidConstPtr& instance) const;
-    std::size_t serializationLength(const VoidConstPtr& instance) const;
+    void serialize(ros::serialization::OStream& stream, const VoidConstPtr& instance = VoidConstPtr()) const;
+    ros::SerializedMessage serialize(const VoidConstPtr& instance = VoidConstPtr()) const;
+    std::size_t serializationLength(const VoidConstPtr& instance = VoidConstPtr()) const;
     VoidPtr deserialize(ros::serialization::IStream& stream, const VoidPtr& instance = VoidPtr()) const;
 
+    MessagePtr introspect(const VoidPtr& instance) const;
     MessagePtr introspect(void *instance) const;
+    MessagePtr introspect(const VoidConstPtr& instance) const;
     MessagePtr introspect(void const *instance) const;
   };
 
@@ -120,13 +123,23 @@ namespace cpp_introspection {
   void MessageTemplate<T>::serialize(ros::serialization::OStream& stream, const VoidConstPtr& instance) const
   {
     const MessageType* x = static_cast<const MessageType*>(instance.get());
+    if (!x) return;
     ros::serialization::serialize(stream, *x);
+  }
+
+  template <typename T>
+  ros::SerializedMessage MessageTemplate<T>::serialize(const VoidConstPtr& instance) const
+  {
+    const MessageType* x = static_cast<const MessageType*>(instance.get());
+    if (!x) return ros::SerializedMessage();
+    return ros::serialization::serializeMessage<T>(*x);
   }
 
   template <typename T>
   std::size_t MessageTemplate<T>::serializationLength(const VoidConstPtr& instance) const
   {
     const MessageType* x = static_cast<const MessageType*>(instance.get());
+    if (!x) return 0;
     return ros::serialization::serializationLength(*x);
   }
 

@@ -37,6 +37,8 @@
 
 #include <ros/time.h>
 #include <ros/console.h>
+#include <std_msgs/String.h>
+#include <std_msgs/Bool.h>
 
 #define CATCH_BAD_CAST_EXCEPTION_AND_RETURN(return_value, default_value) \
   try { \
@@ -64,7 +66,9 @@ namespace cpp_introspection {
     virtual const char *getName() const { return name_; }
     virtual const std::type_info& getTypeId() const = 0;
     virtual bool isNumeric() const { return false; }
+    virtual bool isString() const { return false; }
 
+    template <typename T> bool is() const { return &(getTypeId()) && (getTypeId() == typeid(T)); }
     template <typename TargetType> TargetType as(const boost::any& value) const;
     template <typename SourceType> boost::any from(const SourceType& value) const;
 
@@ -79,6 +83,8 @@ namespace cpp_introspection {
 
     struct StaticInitializer { StaticInitializer(const TypePtr& type); };
     TypePtr alias(const std::string& name) const;
+
+    bool operator==(const Type& other) { return &getTypeId() && &other.getTypeId() && getTypeId() == other.getTypeId(); }
   };
 
   struct UnknownType : public Type
@@ -104,95 +110,106 @@ namespace cpp_introspection {
   class NumericType : public Type
   {
   public:
+    typedef T type;
+
     NumericType(const char *name) : Type(name) {}
     virtual ~NumericType() {}
 
-    virtual const std::type_info& getTypeId() const { return typeid(T); }
+    virtual const std::type_info& getTypeId() const { return typeid(type); }
     virtual bool isNumeric() const { return true; }
 
-    virtual std::string as_string(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<std::string>(boost::any_cast<T>(value)), std::string()); }
-    virtual double      as_double(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(double(boost::any_cast<T>(value)), std::numeric_limits<double>::quiet_NaN()); }
-    virtual int         as_int(const boost::any& value) const       { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(int(boost::any_cast<T>(value)), 0); }
-    virtual unsigned    as_unsigned(const boost::any& value) const  { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(unsigned(boost::any_cast<T>(value)), 0); }
-    virtual boost::any  from_string(const std::string& value) const { return boost::any(boost::lexical_cast<T>(value)); }
-    virtual boost::any  from_double(double value) const             { return boost::any(T(value)); }
-    virtual boost::any  from_int(int value) const                   { return boost::any(T(value)); }
-    virtual boost::any  from_unsigned(unsigned value) const         { return boost::any(T(value)); }
+    virtual std::string as_string(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<std::string>(boost::any_cast<type>(value)), std::string()); }
+    virtual double      as_double(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(double(boost::any_cast<type>(value)), std::numeric_limits<double>::quiet_NaN()); }
+    virtual int         as_int(const boost::any& value) const       { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(int(boost::any_cast<type>(value)), 0); }
+    virtual unsigned    as_unsigned(const boost::any& value) const  { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(unsigned(boost::any_cast<type>(value)), 0); }
+    virtual boost::any  from_string(const std::string& value) const { return boost::any(boost::lexical_cast<type>(value)); }
+    virtual boost::any  from_double(double value) const             { return boost::any(type(value)); }
+    virtual boost::any  from_int(int value) const                   { return boost::any(type(value)); }
+    virtual boost::any  from_unsigned(unsigned value) const         { return boost::any(type(value)); }
   };
 
   class BoolType : public Type
   {
   public:
+    typedef std_msgs::Bool::_data_type type;
+
     BoolType(const char *name) : Type(name) {}
     virtual ~BoolType() {}
 
-    virtual const std::type_info& getTypeId() const { return typeid(uint8_t); }
+    virtual const std::type_info& getTypeId() const { return typeid(type); }
     virtual bool isNumeric() const { return true; }
 
-    virtual std::string as_string(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<std::string>(boost::any_cast<uint8_t>(value)), std::string()); }
-    virtual double      as_double(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(double(boost::any_cast<uint8_t>(value)), std::numeric_limits<double>::quiet_NaN()); }
-    virtual int         as_int(const boost::any& value) const       { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(int(boost::any_cast<uint8_t>(value)), 0); }
-    virtual unsigned    as_unsigned(const boost::any& value) const  { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(unsigned(boost::any_cast<uint8_t>(value)), 0); }
-    virtual boost::any  from_string(const std::string& value) const { return boost::any(uint8_t(boost::lexical_cast<bool>(value))); }
-    virtual boost::any  from_double(double value) const             { return boost::any(uint8_t(value)); }
-    virtual boost::any  from_int(int value) const                   { return boost::any(uint8_t(value)); }
-    virtual boost::any  from_unsigned(unsigned value) const         { return boost::any(uint8_t(value)); }
+    virtual std::string as_string(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<std::string>(boost::any_cast<type>(value)), std::string()); }
+    virtual double      as_double(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(double(boost::any_cast<type>(value)), std::numeric_limits<double>::quiet_NaN()); }
+    virtual int         as_int(const boost::any& value) const       { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(int(boost::any_cast<type>(value)), 0); }
+    virtual unsigned    as_unsigned(const boost::any& value) const  { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(unsigned(boost::any_cast<type>(value)), 0); }
+    virtual boost::any  from_string(const std::string& value) const { return boost::any(type(boost::lexical_cast<bool>(value))); }
+    virtual boost::any  from_double(double value) const             { return boost::any(type(value)); }
+    virtual boost::any  from_int(int value) const                   { return boost::any(type(value)); }
+    virtual boost::any  from_unsigned(unsigned value) const         { return boost::any(type(value)); }
   };
 
   class StringType : public Type
   {
   public:
+    typedef std_msgs::String::_data_type type;
+
     StringType(const char *name) : Type(name) {}
     virtual ~StringType() {}
 
-    virtual const std::type_info& getTypeId() const { return typeid(std::string); }
+    virtual const std::type_info& getTypeId() const { return typeid(type); }
+    virtual bool isString() const { return true; }
 
-    virtual std::string as_string(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::any_cast<std::string>(value), std::string()); }
-    virtual double      as_double(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<double>(boost::any_cast<std::string>(value)), std::numeric_limits<double>::quiet_NaN()); }
-    virtual int         as_int(const boost::any& value) const       { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<int>(boost::any_cast<std::string>(value)), 0); }
-    virtual unsigned    as_unsigned(const boost::any& value) const  { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<unsigned>(boost::any_cast<std::string>(value)), 0); }
-    virtual boost::any  from_string(const std::string& value) const { return boost::any(value); }
-    virtual boost::any  from_double(double value) const             { return boost::any(boost::lexical_cast<std::string>(value)); }
-    virtual boost::any  from_int(int value) const                   { return boost::any(boost::lexical_cast<std::string>(value)); }
-    virtual boost::any  from_unsigned(unsigned value) const         { return boost::any(boost::lexical_cast<std::string>(value)); }
+    virtual std::string as_string(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::any_cast<type>(value), std::string()); }
+    virtual double      as_double(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<double>(boost::any_cast<type>(value)), std::numeric_limits<double>::quiet_NaN()); }
+    virtual int         as_int(const boost::any& value) const       { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<int>(boost::any_cast<type>(value)), 0); }
+    virtual unsigned    as_unsigned(const boost::any& value) const  { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<unsigned>(boost::any_cast<type>(value)), 0); }
+    virtual boost::any  from_string(const std::string& value) const { return boost::any(type(value)); }
+    virtual boost::any  from_double(double value) const             { return boost::any(boost::lexical_cast<type>(value)); }
+    virtual boost::any  from_int(int value) const                   { return boost::any(boost::lexical_cast<type>(value)); }
+    virtual boost::any  from_unsigned(unsigned value) const         { return boost::any(boost::lexical_cast<type>(value)); }
   };
 
   class TimeType : public Type
   {
   public:
+    typedef ros::Time type;
+
     TimeType(const char *name) : Type(name) {}
     virtual ~TimeType() {}
 
-    virtual const std::type_info& getTypeId() const { return typeid(ros::Time); }
+    virtual const std::type_info& getTypeId() const { return typeid(type); }
     virtual bool isNumeric() const { return true; }
 
-    virtual std::string as_string(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<std::string>(boost::any_cast<ros::Time>(value).toSec()), std::string()); }
-    virtual double      as_double(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(double(boost::any_cast<ros::Time>(value).toSec()), std::numeric_limits<double>::quiet_NaN()); }
-    virtual int         as_int(const boost::any& value) const       { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(int(boost::any_cast<ros::Time>(value).toSec()), 0); }
-    virtual unsigned    as_unsigned(const boost::any& value) const  { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(unsigned(boost::any_cast<ros::Time>(value).toSec()), 0); }
-    virtual boost::any  from_string(const std::string& value) const { return boost::any(ros::Time(boost::lexical_cast<double>(value))); }
-    virtual boost::any  from_double(double value) const             { return boost::any(ros::Time(value)); }
-    virtual boost::any  from_int(int value) const                   { return boost::any(ros::Time(double(value))); }
-    virtual boost::any  from_unsigned(unsigned value) const         { return boost::any(ros::Time(double(value))); }
+    virtual std::string as_string(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<std::string>(boost::any_cast<type>(value).toSec()), std::string()); }
+    virtual double      as_double(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(double(boost::any_cast<type>(value).toSec()), std::numeric_limits<double>::quiet_NaN()); }
+    virtual int         as_int(const boost::any& value) const       { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(int(boost::any_cast<type>(value).toSec()), 0); }
+    virtual unsigned    as_unsigned(const boost::any& value) const  { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(unsigned(boost::any_cast<type>(value).toSec()), 0); }
+    virtual boost::any  from_string(const std::string& value) const { return boost::any(type(boost::lexical_cast<double>(value))); }
+    virtual boost::any  from_double(double value) const             { return boost::any(type(value)); }
+    virtual boost::any  from_int(int value) const                   { return boost::any(type(double(value))); }
+    virtual boost::any  from_unsigned(unsigned value) const         { return boost::any(type(double(value))); }
   };
 
   class DurationType : public Type
   {
   public:
+    typedef ros::Duration type;
+
     DurationType(const char *name) : Type(name) {}
     virtual ~DurationType() {}
 
-    virtual const std::type_info& getTypeId() const { return typeid(ros::Duration); }
+    virtual const std::type_info& getTypeId() const { return typeid(type); }
     virtual bool isNumeric() const { return true; }
 
-    virtual std::string as_string(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<std::string>(boost::any_cast<ros::Duration>(value).toSec()), std::string()); }
-    virtual double      as_double(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(double(boost::any_cast<ros::Duration>(value).toSec()), std::numeric_limits<double>::quiet_NaN()); }
-    virtual int         as_int(const boost::any& value) const       { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(int(boost::any_cast<ros::Duration>(value).toSec()), 0); }
-    virtual unsigned    as_unsigned(const boost::any& value) const  { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(unsigned(boost::any_cast<ros::Duration>(value).toSec()), 0); }
-    virtual boost::any  from_string(const std::string& value) const { return boost::any(ros::Duration(boost::lexical_cast<double>(value))); }
-    virtual boost::any  from_double(double value) const             { return boost::any(ros::Duration(value)); }
-    virtual boost::any  from_int(int value) const                   { return boost::any(ros::Duration(double(value))); }
-    virtual boost::any  from_unsigned(unsigned value) const         { return boost::any(ros::Duration(double(value))); }
+    virtual std::string as_string(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(boost::lexical_cast<std::string>(boost::any_cast<type>(value).toSec()), std::string()); }
+    virtual double      as_double(const boost::any& value) const    { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(double(boost::any_cast<type>(value).toSec()), std::numeric_limits<double>::quiet_NaN()); }
+    virtual int         as_int(const boost::any& value) const       { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(int(boost::any_cast<type>(value).toSec()), 0); }
+    virtual unsigned    as_unsigned(const boost::any& value) const  { CATCH_BAD_CAST_EXCEPTION_AND_RETURN(unsigned(boost::any_cast<type>(value).toSec()), 0); }
+    virtual boost::any  from_string(const std::string& value) const { return boost::any(type(boost::lexical_cast<double>(value))); }
+    virtual boost::any  from_double(double value) const             { return boost::any(type(value)); }
+    virtual boost::any  from_int(int value) const                   { return boost::any(type(double(value))); }
+    virtual boost::any  from_unsigned(unsigned value) const         { return boost::any(type(double(value))); }
   };
 
   TypePtr type(const std::string& name);

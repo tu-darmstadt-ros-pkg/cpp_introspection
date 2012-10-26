@@ -60,12 +60,18 @@ public:
   virtual const ros::Time* getTimeStamp(const VoidConstPtr& instance) const { return parent_->getTimeStamp(instance); }
 
   virtual VoidPtr createInstance() const { return parent_->createInstance(); }
-  virtual void serialize(ros::serialization::OStream& stream, const VoidConstPtr& instance) const { parent_->serialize(stream, instance); }
-  virtual std::size_t serializationLength(const VoidConstPtr& instance) const { return parent_->serializationLength(instance); }
+  virtual void serialize(ros::serialization::OStream& stream, const VoidConstPtr& instance = VoidConstPtr()) const { parent_->serialize(stream, instance); }
+  virtual ros::SerializedMessage serialize(const VoidConstPtr& instance = VoidConstPtr()) const { return parent_->serialize(instance); }
+  virtual std::size_t serializationLength(const VoidConstPtr& instance = VoidConstPtr()) const { return parent_->serializationLength(instance); }
   virtual VoidPtr deserialize(ros::serialization::IStream& stream, const VoidPtr& instance = VoidPtr()) const { return parent_->deserialize(stream, instance); }
 
   virtual bool hasInstance() const { return parent_->hasInstance(); }
+  virtual VoidPtr getInstance() const { return parent_->getInstance(); }
+  virtual VoidConstPtr getConstInstance() const { return parent_->getConstInstance(); }
+
+  virtual MessagePtr introspect(const VoidPtr& instance) const { return parent_->introspect(instance); }
   virtual MessagePtr introspect(void *instance) const { return parent_->introspect(instance); }
+  virtual MessagePtr introspect(const VoidConstPtr& instance) const { return parent_->introspect(instance); }
   virtual MessagePtr introspect(void const *instance) const { return parent_->introspect(instance); }
 };
 

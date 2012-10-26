@@ -74,12 +74,18 @@ namespace cpp_introspection {
     std::vector<boost::any>& getValues(std::vector<boost::any>& values, bool expand = false) const;
 
     virtual VoidPtr createInstance() const = 0;
-    virtual void serialize(ros::serialization::OStream& stream, const VoidConstPtr& instance) const = 0;
-    virtual std::size_t serializationLength(const VoidConstPtr& instance) const = 0;
+    virtual void serialize(ros::serialization::OStream& stream, const VoidConstPtr& instance = VoidConstPtr()) const = 0;
+    virtual ros::SerializedMessage serialize(const VoidConstPtr& instance = VoidConstPtr()) const = 0;
+    virtual std::size_t serializationLength(const VoidConstPtr& instance = VoidConstPtr()) const = 0;
     virtual VoidPtr deserialize(ros::serialization::IStream& stream, const VoidPtr& instance = VoidPtr()) const = 0;
 
     virtual bool hasInstance() const { return false; }
+    virtual VoidPtr getInstance() const { return VoidPtr(); }
+    virtual VoidConstPtr getConstInstance() const { return VoidConstPtr(); }
+
+    virtual MessagePtr introspect(const VoidPtr& instance) const = 0;
     virtual MessagePtr introspect(void *instance) const = 0;
+    virtual MessagePtr introspect(const VoidConstPtr& instance) const = 0;
     virtual MessagePtr introspect(void const *instance) const = 0;
 
     template <typename T> typename T::Ptr      narrow(const VoidPtr& instance) const      { return boost::shared_static_cast<T>(instance); }
