@@ -62,29 +62,31 @@ if(NOT ${package}_MSGS)
 endif()
 
 # Find and iterate through dependent packages
-execute_process(
-  COMMAND rospack depends1 ${package}
-  OUTPUT_VARIABLE ${package}_DEPENDS
-  RESULT_VARIABLE ${package}_DEPENDS_RESULT
-)
-if(NOT ${${package}_DEPENDS_RESULT} EQUAL 0)
-  message(SEND_ERROR "Could not get package dependencies for package ${package}.")
-  return()
-endif()
-string(REPLACE "\n" ";" ${package}_DEPENDS "${${package}_DEPENDS}")
-list(REMOVE_ITEM ${package}_DEPENDS "")
-list(APPEND ${package}_DEPENDS std_msgs)
-list(REMOVE_ITEM ${package}_DEPENDS ${package})
+if(INTROSPECTION_ADD_RECURSIVE)
+  execute_process(
+    COMMAND rospack depends1 ${package}
+    OUTPUT_VARIABLE ${package}_DEPENDS
+    RESULT_VARIABLE ${package}_DEPENDS_RESULT
+  )
+  if(NOT ${${package}_DEPENDS_RESULT} EQUAL 0)
+    message(SEND_ERROR "Could not get package dependencies for package ${package}.")
+    return()
+  endif()
+  string(REPLACE "\n" ";" ${package}_DEPENDS "${${package}_DEPENDS}")
+  list(REMOVE_ITEM ${package}_DEPENDS "")
+  list(APPEND ${package}_DEPENDS std_msgs)
+  list(REMOVE_ITEM ${package}_DEPENDS ${package})
 
-unset(_dependent_declarations)
-unset(_dependent_initializers)
-foreach(dependent_package ${${package}_DEPENDS})
-  message(STATUS "Package ${dependent_package} is required for ${package}")
-  introspection_add(${dependent_package})
-  list(APPEND introspection_${package}_LIBRARIES introspection_${dependent_package})
-  set(_dependent_declarations "${_dependent_declarations}#include \"introspection/${dependent_package}/package.h\"\n")
-  set(_dependent_initializers "${_dependent_initializers}${dependent_package}::Load();\n")
-endforeach()
+  unset(_dependent_declarations)
+  unset(_dependent_initializers)
+  foreach(dependent_package ${${package}_DEPENDS})
+    message(STATUS "Package ${dependent_package} is required for ${package}")
+    introspection_add(${dependent_package})
+    list(APPEND introspection_${package}_LIBRARIES introspection_${dependent_package})
+    set(_dependent_declarations "${_dependent_declarations}#include \"introspection/${dependent_package}/package.h\"\n")
+    set(_dependent_initializers "${_dependent_initializers}${dependent_package}::Load();\n")
+  endforeach()
+endif(INTROSPECTION_ADD_RECURSIVE)
 list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/introspection")
 
 # Find other dependent packages

@@ -6,7 +6,10 @@ mark_as_advanced(introspection_package_list)
 
 include_directories(${CMAKE_BINARY_DIR}/include)
 
+include(CMakeParseArguments)
 function(introspection_add package)
+  cmake_parse_arguments(INTROSPECTION_ADD "RECURSIVE" "" "" ${ARGN})
+
   # abort if this function has already been called for this package (prevent recursive calls)
   if(NOT TARGET introspection_${package})
     add_subdirectory(${cpp_introspection_SOURCE_DIR}/src/package ${CMAKE_BINARY_DIR}/cpp_introspection/introspection/${package})
