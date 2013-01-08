@@ -1,0 +1,19 @@
+<package>
+  <name>cpp_introspection</name>
+  <version>0.1.0</version>
+  <description>
+     cpp_introspection enables introspection of ROS message types in roscpp.
+     Introspection is useful when message data is going to be exported to or imported from
+     other data formats or applications.
+  </description>
+  <maintainer email="meyer@fsr.tu-darmstadt.de">Johannes Meyer</maintainer>
+  <author email="meyer@fsr.tu-darmstadt.de">Johannes Meyer</author>
+  <license>BSD</license>
+  <url type="website">http://github.com/tu-darmstadt-ros-pkg/cpp_introspection/wiki</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rosconsole</build_depend>
+  <build_depend>rostime</build_depend>
+  <build_depend>roscpp_traits</build_depend>
+  <build_depend>roscpp_serialization</build_depend>
+</package>

@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 2.8.3)
-set(cpp_introspection_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
+if(@INSTALLSPACE@)
+  set(cpp_introspection_SOURCE_DIR "@CMAKE_INSTALL_PREFIX@/@CATKIN_PACKAGE_SHARE_DESTINATION@")
+else()
+  set(cpp_introspection_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
+endif()
 
 set(introspection_package_list "" CACHE INTERNAL "")
 mark_as_advanced(introspection_package_list)
 
-include_directories(${CMAKE_BINARY_DIR}/include)
+include_directories(${CATKIN_DEVEL_PREFIX}/include)
 
 include(CMakeParseArguments)
 function(introspection_add package)
@@ -15,3 +19,4 @@ function(introspection_add package)
     add_subdirectory(${cpp_introspection_SOURCE_DIR}/src/package ${CMAKE_BINARY_DIR}/cpp_introspection/introspection/${package})
   endif()
 endfunction(introspection_add)
+

@@ -87,12 +87,16 @@ if(INTROSPECTION_ADD_RECURSIVE)
     set(_dependent_initializers "${_dependent_initializers}${dependent_package}::Load();\n")
   endforeach()
 endif(INTROSPECTION_ADD_RECURSIVE)
-list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/introspection")
 
 # Find other dependent packages
-find_package(ROS REQUIRED COMPONENTS roscpp_serialization roscpp_traits rostime)
-list(APPEND introspection_${package}_INCLUDE_DIRS ${cpp_introspection_INCLUDE_DIRECTORIES} ${ROS_INCLUDE_DIRS})
-list(APPEND introspection_${package}_LIBRARIES ${cpp_introspection_LIBRARIES} ${ROS_LIBRARIES})
+foreach(pkg cpp_introspection roscpp_serialization roscpp_traits rostime)
+  find_package(${pkg} REQUIRED)
+  list(APPEND introspection_${package}_INCLUDE_DIRS ${${pkg}_INCLUDE_DIRECTORIES})
+  list(APPEND introspection_${package}_LIBRARIES ${${pkg}_LIBRARIES})
+endforeach()
+
+# Set install RPATH
+list(APPEND CMAKE_INSTALL_RPATH "${CATKIN_GLOBAL_LIB_DESTINATION}/introspection")
 
 # Iterate over all messages and generate mex
 message(STATUS "Building introspection library for package ${package}")
@@ -150,7 +154,7 @@ endforeach()
 
 include_directories(${introspection_${package}_INCLUDE_DIRS})
 configure_file(package.cpp.in package.cpp @ONLY)
-configure_file(package.h.in ${CMAKE_BINARY_DIR}/include/introspection/${package}/package.h @ONLY)
+configure_file(package.h.in ${CATKIN_DEVEL_PREFIX}/include/introspection/${package}/package.h @ONLY)
 list(APPEND introspection_${package}_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/package.cpp)
 
 add_library(introspection_${package} SHARED ${introspection_${package}_SOURCES})
@@ -164,5 +168,6 @@ else()
   set_target_properties(introspection_${package} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
-install(TARGETS introspection_${package} DESTINATION lib/introspection)
-install(FILES ${CMAKE_BINARY_DIR}/include/introspection/${package}/package.h DESTINATION include/introspection/${package})
+install(TARGETS introspection_${package} DESTINATION ${CATKIN_GLOBAL_LIB_DESTINATION}/introspection)
+install(FILES ${CATKIN_DEVEL_PREFIX}/include/introspection/${package}/package.h DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/introspection/${package})
+
