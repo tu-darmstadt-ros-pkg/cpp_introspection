@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
-set(cpp_introspection_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
+if(@INSTALLSPACE@)
+  set(cpp_introspection_SOURCE_DIR "@PROJECT_SHARE_INSTALL_PREFIX@")
+else()
+  set(cpp_introspection_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
+endif()
 
 set(introspection_package_list "" CACHE INTERNAL "")
 mark_as_advanced(introspection_package_list)
