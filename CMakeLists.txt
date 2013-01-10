@@ -8,12 +8,10 @@ catkin_package(
   CFG_EXTRAS introspection.cmake
 )
 include(${CATKIN_DEVEL_PREFIX}/share/${PROJECT_NAME}/cmake/introspection.cmake)
-include_directories(${catkin_INCLUDE_DIRS})
 
 find_package(Boost REQUIRED COMPONENTS filesystem)
-include_directories(${Boost_INCLUDE_DIRS})
 
-include_directories(include)
+include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 add_subdirectory(src)
 
 install(DIRECTORY include/ DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION})
