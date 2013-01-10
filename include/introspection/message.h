@@ -55,6 +55,8 @@ namespace cpp_introspection {
     virtual bool isFixedSize() const = 0;
     virtual bool hasHeader() const = 0;
 
+    template <typename T> bool hasType() const { return getTypeId() == typeid(T); }
+
     virtual std_msgs::Header* getHeader(const VoidPtr& instance) const = 0;
     virtual const std_msgs::Header* getHeader(const VoidConstPtr& instance) const = 0;
     virtual std::string* getFrameId(const VoidPtr& instance) const = 0;
@@ -82,11 +84,14 @@ namespace cpp_introspection {
     virtual bool hasInstance() const { return false; }
     virtual VoidPtr getInstance() const { return VoidPtr(); }
     virtual VoidConstPtr getConstInstance() const { return VoidConstPtr(); }
+    template <typename T> boost::shared_ptr<T> getInstanceAs() const { assert(getTypeId() == typeid(T)); return boost::shared_static_cast<T>(getInstance()); }
+    template <typename T> boost::shared_ptr<T const> getConstInstanceAs() const { assert(getTypeId() == typeid(T)); return boost::shared_static_cast<T const>(getConstInstance()); }
 
     virtual MessagePtr introspect(const VoidPtr& instance) const = 0;
     virtual MessagePtr introspect(void *instance) const = 0;
     virtual MessagePtr introspect(const VoidConstPtr& instance) const = 0;
     virtual MessagePtr introspect(void const *instance) const = 0;
+    virtual MessagePtr introspect() const { return introspect(createInstance()); }
 
     template <typename T> typename T::Ptr      narrow(const VoidPtr& instance) const      { return boost::shared_static_cast<T>(instance); }
     template <typename T> typename T::ConstPtr narrow(const VoidConstPtr& instance) const { return boost::shared_static_cast<T const>(instance); }
@@ -107,5 +112,45 @@ namespace cpp_introspection {
   MessagePtr expand(const MessagePtr& message, const std::string &separator = ".", const std::string &prefix = "");
 
 } // namespace cpp_introspection
+
+namespace ros {
+namespace serialization {
+
+  template<>
+  struct Serializer<cpp_introspection::Message>
+  {
+    template<typename Stream>
+    inline static void write(Stream& stream, const cpp_introspection::Message& message) {
+      if (!message.hasInstance()) throw std::runtime_error("Tried to serialize a message without an instance");
+      message.serialize(stream, message.getConstInstance());
+    }
+
+    inline static uint32_t serializedLength(const cpp_introspection::Message& message) {
+      if (!message.hasInstance()) throw std::runtime_error("Tried to serialize a message without an instance");
+      return message.serializationLength(message.getConstInstance());
+    }
+  };
+
+}
+}
+
+namespace ros {
+namespace message_traits {
+
+  template<> struct MD5Sum<cpp_introspection::Message>
+  {
+    static const char* value(const cpp_introspection::Message& message) { return message.getMD5Sum(); }
+  };
+  template<> struct DataType<cpp_introspection::Message>
+  {
+    static const char* value(const cpp_introspection::Message& message) { return message.getDataType(); }
+  };
+  template<> struct Definition<cpp_introspection::Message>
+  {
+    static const char* value(const cpp_introspection::Message& message) { return message.getDefinition(); }
+  };
+
+}
+}
 
 #endif // CPP_INTROSPECTION_MESSAGE_H
