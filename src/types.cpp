@@ -48,6 +48,8 @@ namespace cpp_introspection {
     static Type::StaticInitializer ros_string  (TypePtr(new StringType("string")));
     static Type::StaticInitializer ros_time    (TypePtr(new TimeType("time")));
     static Type::StaticInitializer ros_duration(TypePtr(new DurationType("duration")));
+    static Type::StaticInitializer ros_byte    (TypePtr(new NumericType<int8_t>("byte")));
+    static Type::StaticInitializer ros_char    (TypePtr(new NumericType<uint8_t>("char")));
   } // namespace
 
   const TypePtr& Type::add(const TypePtr& type, const std::string& alias)
