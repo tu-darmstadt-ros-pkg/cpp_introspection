@@ -73,6 +73,9 @@ namespace cpp_introspection {
 
     T& instance() const { return *instance_; }
 
+    PackagePtr package() const { return message_.package(); }
+    const char* getPackageName() const { return message_.getPackageName(); }
+
     const char *getName() const { return message_.getName(); }
 
 //    const Package& package() const { return message_.package(); }

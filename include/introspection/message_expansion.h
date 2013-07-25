@@ -41,6 +41,9 @@ public:
   MessageForwarder(const MessagePtr& parent) : parent_(parent) {}
   virtual ~MessageForwarder() {}
 
+  virtual PackagePtr package() const { return parent_->package(); }
+  virtual const char* getPackageName() const { return parent_->getPackageName(); }
+
   virtual const char* getName() const { return parent_->getName(); }
   virtual const char* getDataType() const { return parent_->getDataType(); }
   virtual const char* getMD5Sum() const { return parent_->getMD5Sum(); }

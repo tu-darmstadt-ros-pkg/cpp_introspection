@@ -42,7 +42,8 @@ namespace cpp_introspection {
   public:
     virtual ~Message() {}
 
-//    virtual const Package& package() const = 0;
+    virtual PackagePtr package() const = 0;
+    virtual const char* getPackageName() const = 0;
 
     virtual const char* getName() const = 0;
     virtual const char* getDataType() const = 0;

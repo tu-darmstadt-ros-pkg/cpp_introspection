@@ -29,6 +29,7 @@
 #include <introspection/message_template.h>
 #include <introspection/field.h>
 #include <introspection/accessor.h>
+#include <introspection/package.h>
 #include <@package@/@message@.h>
 
 @_field_includes@
@@ -53,9 +54,11 @@ namespace @message@ {
     Introspection();
     virtual ~Introspection() {}
 
+    PackagePtr package() const { return ::cpp_introspection::package("@package@"); }
+    const char* getPackageName() const { return "@package@"; }
+
     const char* getName() const { return "@message@"; }
 
-//    const Package& package() const { return package_; }
     const V_Field& fields() const { return fields_; }
     FieldWPtr field(const std::string& name) const { return fields_by_name_.at(name); }
     const V_FieldName& getFieldNames() const { return field_names_; }
@@ -72,7 +75,6 @@ namespace @message@ {
     return field;
   }
 
-//  Introspection::Introspection(const Package& package)
   Introspection::Introspection()
   {
 @_field_initializers@

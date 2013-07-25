@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS rosconsole)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES cpp_introspection
+  CATKIN_DEPENDS rosconsole rostime roscpp_traits roscpp_serialization
   CFG_EXTRAS introspection.cmake
 )
 include(${CATKIN_DEVEL_PREFIX}/share/${PROJECT_NAME}/cmake/introspection.cmake)
