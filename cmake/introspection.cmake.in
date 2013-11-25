@@ -8,15 +8,64 @@ endif()
 set(introspection_package_list "" CACHE INTERNAL "")
 mark_as_advanced(introspection_package_list)
 
-include_directories(${CATKIN_DEVEL_PREFIX}/include)
+function(introspection_get_messages package result)
+  find_package(${package} QUIET)
+
+  set(_msgs)
+  if(DEFINED ${package}_MESSAGE_FILES)
+    foreach(_msg ${${package}_MESSAGE_FILES})
+      string(REGEX REPLACE "^msg/" "" _msg "${_msg}")
+      string(REGEX REPLACE ".msg" "" _msg "${_msg}")
+      list(APPEND _msgs "${_msg}")
+    endforeach()
+
+  else() # Fall back to rosmsg package ...
+    execute_process(
+      COMMAND rosmsg package ${package}
+      OUTPUT_VARIABLE _msgs
+      RESULT_VARIABLE _result
+    )
+    if(NOT ${_result} EQUAL 0)
+      message(SEND_ERROR "Could not list messages from package ${package}")
+      return()
+    endif()
+    string(REPLACE "\n" ";" _msgs "${_msgs}")
+    string(REPLACE "${package}/" "" _msgs "${_msgs}")
+    list(REMOVE_ITEM _msgs "")
+  endif()
+  set(${result} ${_msgs} PARENT_SCOPE)
+  #message(STATUS "Package ${package} has messages ${_msgs}")
+endfunction()
 
 include(CMakeParseArguments)
 function(introspection_add package)
   cmake_parse_arguments(INTROSPECTION_ADD "RECURSIVE" "" "" ${ARGN})
 
   # abort if this function has already been called for this package (prevent recursive calls)
-  if(NOT TARGET introspection_${package})
-    add_subdirectory(${cpp_introspection_SOURCE_DIR}/src/package ${CMAKE_BINARY_DIR}/cpp_introspection/introspection/${package})
+  #message(STATUS "in introspection_add(\"${package}\"): _introspection_add_visited_${package} = ${_introspection_add_visited_${package}}")
+  if(TARGET introspection_${package} OR _introspection_add_visited_${package})
+    return()
   endif()
+  set(_introspection_add_visited_${package} 1)
+
+  # Skip package message_runtime
+  if(package STREQUAL "message_runtime")
+    return()
+  endif()
+
+  # List all messages in package ${package}
+  introspection_get_messages(${package} ${package}_MSGS)
+
+  # Return if message list is empty
+  if(NOT ${package}_MSGS)
+    return()
+  endif()
+
+  # Build introspection library for package ${package}
+  add_subdirectory(${cpp_introspection_SOURCE_DIR}/src/package ${CMAKE_BINARY_DIR}/cpp_introspection/introspection/${package})
+
+  # Add ${package} to introspection_package_list
+  list(APPEND introspection_package_list ${package})
+  set(introspection_package_list ${introspection_package_list} CACHE INTERNAL "")
 endfunction(introspection_add)
 

@@ -9,12 +9,26 @@ if(TARGET introspection_${package})
   return()
 endif()
 
+# List all messages in package ${package}
+introspection_get_messages(${package} ${package}_MSGS)
+
+# Return if message list is empty
+if(NOT ${package}_MSGS)
+  return()
+endif()
+
+# Reset variables
+unset(introspection_${package}_INCLUDE_DIRS)
+unset(introspection_${package}_LIBRARIES)
+unset(${package}_MSG_DEPENDENCIES)
+
 # Find message package
 find_package(${package} QUIET)
 if(${package}_FOUND)
   message(STATUS "Found ${package} at ${${package}_DIR}")
-  include_directories(${${package}_INCLUDE_DIRS})
-else()
+  list(APPEND introspection_${package}_INCLUDE_DIRS ${${package}_INCLUDE_DIRS})
+
+else() # Fall back to rospack find...
   execute_process(
     COMMAND rospack find ${package}
     OUTPUT_VARIABLE ${package}_PACKAGE_PATH
@@ -39,61 +53,54 @@ else()
   string(REPLACE "\n" ";" ${package}_INCLUDE_DIRS ${${package}_INCLUDE_DIRS})
   string(REPLACE " " ";" ${package}_INCLUDE_DIRS ${${package}_INCLUDE_DIRS})
   list(REMOVE_ITEM ${package}_INCLUDE_DIRS "")
-  include_directories(${${package}_INCLUDE_DIRS})
-endif()
-
-# List all messages in package ${package}
-execute_process(
-  COMMAND rosmsg package ${package}
-  OUTPUT_VARIABLE ${package}_MSGS
-  RESULT_VARIABLE ${package}_MSGS_RESULT
-)
-if(NOT ${${package}_MSGS_RESULT} EQUAL 0)
-  message(SEND_ERROR "Could not list messages from package ${package}")
-  return()
-endif()
-string(REPLACE "\n" ";" ${package}_MSGS "${${package}_MSGS}")
-string(REPLACE "${package}/" "" ${package}_MSGS "${${package}_MSGS}")
-list(REMOVE_ITEM ${package}_MSGS "")
-
-# Return if message list is empty
-if(NOT ${package}_MSGS)
-  return()
+  list(APPEND introspection_${package}_INCLUDE_DIRS ${${package}_INCLUDE_DIRS})
 endif()
 
 # Find and iterate through dependent packages
-if(INTROSPECTION_ADD_RECURSIVE)
+if(NOT DEFINED ${package}_MSG_DEPENDENCIES)
   execute_process(
-    COMMAND rospack depends1 ${package}
-    OUTPUT_VARIABLE ${package}_DEPENDS
-    RESULT_VARIABLE ${package}_DEPENDS_RESULT
+    COMMAND rospack depends ${package}
+    OUTPUT_VARIABLE ${package}_MSG_DEPENDENCIES
+    RESULT_VARIABLE _result
   )
-  if(NOT ${${package}_DEPENDS_RESULT} EQUAL 0)
+  if(NOT ${_result} EQUAL 0)
     message(SEND_ERROR "Could not get package dependencies for package ${package}.")
     return()
   endif()
-  string(REPLACE "\n" ";" ${package}_DEPENDS "${${package}_DEPENDS}")
-  list(REMOVE_ITEM ${package}_DEPENDS "")
-  list(APPEND ${package}_DEPENDS std_msgs)
-  list(REMOVE_ITEM ${package}_DEPENDS ${package})
+  string(REPLACE "\n" ";" ${package}_MSG_DEPENDENCIES "${${package}_MSG_DEPENDENCIES}")
+  list(REMOVE_ITEM ${package}_MSG_DEPENDENCIES "")
+  #list(APPEND ${package}_MSG_DEPENDENCIES std_msgs)
+  list(REMOVE_ITEM ${package}_MSG_DEPENDENCIES ${package})
+endif()
+#message(STATUS "Package ${package} has dependencies ${${package}_MSG_DEPENDENCIES}")
 
-  unset(_dependent_declarations)
-  unset(_dependent_initializers)
-  foreach(dependent_package ${${package}_DEPENDS})
-    message(STATUS "Package ${dependent_package} is required for ${package}")
-    introspection_add(${dependent_package})
-    list(APPEND introspection_${package}_LIBRARIES introspection_${dependent_package})
+unset(_dependent_declarations)
+unset(_dependent_initializers)
+foreach(dependent_package ${${package}_MSG_DEPENDENCIES})
+  #message(STATUS "Package ${dependent_package} is required for ${package}")
+
+  # check if this package has messages
+  introspection_get_messages(${dependent_package} ${dependent_package}_MSGS)
+
+  if(${dependent_package}_MSGS)
+    if(INTROSPECTION_ADD_RECURSIVE)
+      introspection_add(${dependent_package} RECURSIVE)
+    endif(INTROSPECTION_ADD_RECURSIVE)
+
     set(_dependent_declarations "${_dependent_declarations}#include \"introspection/${dependent_package}/package.h\"\n")
-    set(_dependent_initializers "${_dependent_initializers}${dependent_package}::Load();\n")
-  endforeach()
-endif(INTROSPECTION_ADD_RECURSIVE)
+    set(_dependent_initializers "${_dependent_initializers}    ${dependent_package}::Instance();\n")
+    list(APPEND introspection_${package}_LIBRARIES introspection_${dependent_package})
+  endif()
+endforeach()
 
 # Find other dependent packages
 foreach(pkg cpp_introspection roscpp_serialization roscpp_traits rostime)
   find_package(${pkg} REQUIRED)
-  list(APPEND introspection_${package}_INCLUDE_DIRS ${${pkg}_INCLUDE_DIRECTORIES})
+  list(APPEND introspection_${package}_INCLUDE_DIRS ${${pkg}_INCLUDE_DIRS})
   list(APPEND introspection_${package}_LIBRARIES ${${pkg}_LIBRARIES})
 endforeach()
+list(REMOVE_DUPLICATES introspection_${package}_INCLUDE_DIRS)
+list(REMOVE_DUPLICATES introspection_${package}_LIBRARIES)
 
 # Set install RPATH
 list(APPEND CMAKE_INSTALL_RPATH "${CATKIN_GLOBAL_LIB_DESTINATION}/introspection")
@@ -130,7 +137,7 @@ foreach(message ${${package}_MSGS})
       set(constant_type ${CMAKE_MATCH_1})
       set(constant ${CMAKE_MATCH_2})
       set(constant_value ${CMAKE_MATCH_3})
-      set(_constant_initializers "${_constant_initializers}add(Constant(\"${constant}\", \"${constant_type}\", \"${constant_value}\"));\n")
+      set(_constant_initializers "${_constant_initializers}    add(Constant(\"${constant}\", \"${constant_type}\", \"${constant_value}\"));\n")
 
     elseif(${field_pair} MATCHES "^([^\ ]+)\ ([^\ ]+)$")
       set(field_type ${CMAKE_MATCH_1})
@@ -139,7 +146,7 @@ foreach(message ${${package}_MSGS})
 
       configure_file(field.cpp.in ${message}/fields/${field}.cpp @ONLY)
       set(_field_includes "${_field_includes}#include \"fields/${field}.cpp\"\n")
-      set(_field_initializers "${_field_initializers}add(FieldPtr(new fields::Field_${field}(*this)));\n")
+      set(_field_initializers "${_field_initializers}    add(FieldPtr(new fields::Field_${field}(*this)));\n")
 
       math(EXPR field_index "${field_index} + 1")
     endif()
@@ -149,9 +156,10 @@ foreach(message ${${package}_MSGS})
 
   list(APPEND introspection_${package}_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${message}/message.cpp)
   set(_message_declarations "${_message_declarations}namespace ${message} { MessagePtr Instance(); }\n")
-  set(_message_initializers "${_message_initializers}add(${message}::Instance());\n")
+  set(_message_initializers "${_message_initializers}    add(${message}::Instance());\n")
 endforeach()
 
+include_directories(${CATKIN_DEVEL_PREFIX}/include)
 include_directories(${introspection_${package}_INCLUDE_DIRS})
 configure_file(package.cpp.in package.cpp @ONLY)
 configure_file(package.h.in ${CATKIN_DEVEL_PREFIX}/include/introspection/${package}/package.h @ONLY)
