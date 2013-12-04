@@ -232,10 +232,17 @@ namespace cpp_introspection {
     return messageByTypeId(this->getTypeId());
   }
 
-  using namespace boost::filesystem;
-  void load(const std::string& library_or_path)
+  PackagePtr loadPackage(const std::string &package_name)
   {
-    path path(library_or_path);
+    PackagePtr p = package(package_name);
+    if (p) return p;
+    return load("libintrospection_" + package_name + ".so");
+  }
+
+  using namespace boost::filesystem;
+  PackagePtr load(const std::string& package_or_library_or_path)
+  {
+    path path(package_or_library_or_path);
     if (is_directory(path)) {
       ROS_DEBUG_STREAM_NAMED(ROS_PACKAGE_NAME, "Searching directory " << path << "...");
       for(directory_iterator entry(path); entry != directory_iterator(); ++entry) {
@@ -243,37 +250,39 @@ namespace cpp_introspection {
         if (is_regular_file(entry->path())) load(entry->path().string());
       }
 
-      return;
+      return PackagePtr();
     }
 
-    if (is_regular_file(path)) {
-      if (path.extension() != ".so") return;
-      ROS_DEBUG_STREAM_NAMED(ROS_PACKAGE_NAME, "Loading " << path << "...");
+    if (path.extension() != ".so") {
+      loadPackage(package_or_library_or_path);
+      return PackagePtr();
+    }
+    ROS_DEBUG_STREAM_NAMED(ROS_PACKAGE_NAME, "Loading " << path << "...");
 
-      if (std::find(g_loaded_libraries.begin(), g_loaded_libraries.end(), path.string()) != g_loaded_libraries.end()) {
-        ROS_WARN_STREAM_NAMED(ROS_PACKAGE_NAME, "library " << path << " already loaded");
-        return;
-      }
+    if (std::find(g_loaded_libraries.begin(), g_loaded_libraries.end(), path.filename()) != g_loaded_libraries.end()) {
+      ROS_WARN_STREAM_NAMED(ROS_PACKAGE_NAME, "library " << path << " already loaded");
+      return PackagePtr();
+    }
 
-      void *library = dlopen(path.string().c_str(), RTLD_NOW | RTLD_GLOBAL);
-      const char *error = dlerror();
-      if (error || !library) {
-        ROS_ERROR("%s", error);
-        return;
-      }
+    void *library = dlopen(path.string().c_str(), RTLD_NOW | RTLD_GLOBAL);
+    const char *error = dlerror();
+    if (error || !library) {
+      ROS_ERROR("%s", error);
+      return PackagePtr();
+    }
 
-      typedef PackagePtr (*LoadFunction)();
-      LoadFunction load_fcn = (LoadFunction) dlsym(library, "cpp_introspection_load_package");
-      error = dlerror();
-      if (error || !load_fcn) {
-        ROS_WARN_NAMED(ROS_PACKAGE_NAME, "%s", error);
-        dlclose(library);
-        return;
-      }
-      PackagePtr package __attribute__((unused)) = (*load_fcn)();
+    typedef PackagePtr (*LoadFunction)();
+    LoadFunction load_fcn = (LoadFunction) dlsym(library, "cpp_introspection_load_package");
+    error = dlerror();
+    if (error || !load_fcn) {
+      ROS_WARN_NAMED(ROS_PACKAGE_NAME, "%s", error);
+      dlclose(library);
+      return PackagePtr();
+    }
+    PackagePtr package __attribute__((unused)) = (*load_fcn)();
 
-      ROS_INFO_STREAM_NAMED(ROS_PACKAGE_NAME, "Successfully loaded cpp_introspection library " << path);
-      g_loaded_libraries.push_back(path.string());
+    ROS_INFO_STREAM_NAMED(ROS_PACKAGE_NAME, "Successfully loaded cpp_introspection library " << path);
+    g_loaded_libraries.push_back(path.filename());
 
 //      for(Package::const_iterator it = package->begin(); it != package->end(); ++it) {
 //        ROS_INFO_STREAM_NAMED(ROS_PACKAGE_NAME, "Package " << package->getName() << " contains message " << (*it)->getName() << ":");
@@ -283,7 +292,8 @@ namespace cpp_introspection {
 //          ROS_INFO("  %s %s", it_type->c_str(), it_name->c_str());
 //        }
 //      }
-    }
+
+    return package;
   }
 
 } // namespace cpp_introspection

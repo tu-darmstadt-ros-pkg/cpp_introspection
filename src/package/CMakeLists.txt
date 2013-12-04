@@ -87,9 +87,10 @@ foreach(dependent_package ${${package}_MSG_DEPENDENCIES})
       introspection_add(${dependent_package} RECURSIVE)
     endif(INTROSPECTION_ADD_RECURSIVE)
 
-    set(_dependent_declarations "${_dependent_declarations}#include \"introspection/${dependent_package}/package.h\"\n")
-    set(_dependent_initializers "${_dependent_initializers}    ${dependent_package}::Instance();\n")
-    list(APPEND introspection_${package}_LIBRARIES introspection_${dependent_package})
+    #set(_dependent_declarations "${_dependent_declarations}#include \"introspection/${dependent_package}/package.h\"\n")
+    #set(_dependent_initializers "${_dependent_initializers}    ${dependent_package}::Instance();\n")
+    #list(APPEND introspection_${package}_LIBRARIES introspection_${dependent_package})
+    set(_dependent_initializers "${_dependent_initializers}    loadPackage(\"${dependent_package}\");\n")
   endif()
 endforeach()
 

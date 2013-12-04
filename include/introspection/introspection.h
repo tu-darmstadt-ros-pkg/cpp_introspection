@@ -36,7 +36,8 @@
 
 namespace cpp_introspection {
 
-  void load(const std::string& library_or_path);
+  PackagePtr loadPackage(const std::string& package_name);
+  PackagePtr load(const std::string& package_or_library_or_path);
 
   template <typename T> MessagePtr introspect(T& instance) {
     MessagePtr message = messageByTypeId(typeid(T));

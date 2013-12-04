@@ -26,6 +26,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
+#include <introspection/introspection.h>
 #include <introspection/package.h>
 #include <introspection/@package@/package.h>
 
@@ -64,5 +65,5 @@ namespace @package@ {
 
 using namespace cpp_introspection;
 extern "C" PackagePtr cpp_introspection_load_package() {
-  return @package@::Load();
+  return ::cpp_introspection::@package@::Load();
 }
