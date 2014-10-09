@@ -26,6 +26,7 @@ unset(${package}_MSG_DEPENDENCIES)
 find_package(${package} QUIET)
 if(${package}_FOUND)
   message(STATUS "Found ${package} at ${${package}_DIR}")
+  include("${${package}_DIR}/${package}-msg-paths.cmake")
   list(APPEND introspection_${package}_INCLUDE_DIRS ${${package}_INCLUDE_DIRS})
 
 else() # Fall back to rospack find...
@@ -150,8 +151,8 @@ foreach(message ${${package}_MSGS})
 
         math(EXPR field_index "${field_index} + 1")
       endif()
-    endif()
-  endforeach()
+    endforeach()
+  endif()
 
   configure_file(message.cpp.in ${message}/message.cpp @ONLY)
 
