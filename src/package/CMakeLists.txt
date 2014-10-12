@@ -26,7 +26,6 @@ unset(${package}_MSG_DEPENDENCIES)
 find_package(${package} QUIET)
 if(${package}_FOUND)
   message(STATUS "Found ${package} at ${${package}_DIR}")
-  include("${${package}_DIR}/${package}-msg-paths.cmake")
   list(APPEND introspection_${package}_INCLUDE_DIRS ${${package}_INCLUDE_DIRS})
 
 else() # Fall back to rospack find...
